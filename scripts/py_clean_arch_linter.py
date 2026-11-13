@@ -6,6 +6,11 @@ Parses .py files with `ast` (no third-party dependencies, no code is imported or
 and reports violations of the clean architecture rules. Complements ruff and mypy: those
 check generic Python quality, this checks layering, naming and project conventions.
 
+The linter follows the project's template (`.clean_arch.toml` next to `pyproject.toml`, else the
+skill's default template; `--template REF` for one run): `[structure]` sets the folders,
+`[lint] off` turns rules off, `[lint] warn` makes rules warnings that `--strict` does not fail on,
+and `[lint.params]` sets `allowed_numbers`, `max_file_lines` and `constant_layers`.
+
 Usage:
   python3 scripts/py_clean_arch_linter.py                          # whole project (src/<package>)
   python3 scripts/py_clean_arch_linter.py src/my_app/features/auth # one feature
@@ -14,6 +19,7 @@ Usage:
   python3 scripts/py_clean_arch_linter.py --ignore magic_strings
   python3 scripts/py_clean_arch_linter.py --json
   python3 scripts/py_clean_arch_linter.py --list-rules
+  python3 scripts/py_clean_arch_linter.py --template revoockv-original@1.0.0
 
 Rules (all enabled by default):
   folder_structure    — feature/core folders must match data/domain/presentation layout
@@ -38,6 +44,8 @@ Rules (all enabled by default):
   magic_strings       — strings in domain/presentation code are class constants
   module_constants    — constants live in the owning class, not at module level (domain/presentation)
   di_naming           — <feature>_di.py with register_<feature>(), <feature>_getters.py, wired in di.py
+  file_size           — a file longer than max_file_lines does too much: split it into data sources,
+                        services and models that the repository orchestrates
 """
 
 from __future__ import annotations
@@ -52,7 +60,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterator
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 RULES: dict[str, str] = {
     "folder_structure": "feature/core folders must match data/domain/presentation layout",
@@ -77,16 +85,28 @@ RULES: dict[str, str] = {
     "magic_strings": "strings in domain/presentation code are class constants",
     "module_constants": "constants live in the owning class, not at module level",
     "di_naming": "<feature>_di.py / register_<feature>() / <feature>_getters.py / wired in di.py",
+    "file_size": "a file longer than max_file_lines must be split (data sources, services, models)",
 }
+ALL_RULES = set(RULES)
 
 LAYERS = ("data", "domain", "presentation")
-REQUIRED_SUBDIRS = {
+# The defaults below are replaced by the project's template in configure().
+# Required folders of every feature and of core/: layer → subfolders (template [structure.required])
+REQUIRED_SUBDIRS: dict[str, tuple[str, ...]] = {
     "data": ("data_sources", "models", "repositories"),
     "domain": ("entities", "repositories", "use_cases"),
     "presentation": ("di",),
 }
-OPTIONAL_SUBDIRS = {"data": ("services",)}  # allowed but not required
-STRICT_SUBDIRS = ("data", "domain")  # no other subfolders allowed in these layers
+# Allowed but not required (template [structure.optional])
+OPTIONAL_SUBDIRS: dict[str, tuple[str, ...]] = {"data": ("services",)}
+# Layers that accept no other subfolders (template [structure] strict_layers)
+STRICT_SUBDIRS: tuple[str, ...] = ("data", "domain")
+# Layers whose code is checked by magic_numbers, magic_strings, module_constants ([lint.params] constant_layers)
+CONSTANT_LAYERS: tuple[str, ...] = ("domain", "presentation")
+# Longest allowed file, in non-blank lines ([lint.params] max_file_lines)
+MAX_FILE_LINES = 200
+# Rules reported as warnings: shown, but `--strict` does not fail on them ([lint] warn)
+WARN_RULES: set[str] = set()
 FILE_SUFFIXES = {
     ("domain", "use_cases"): ("_use_case.py",),
     ("domain", "repositories"): ("_repository.py",),
@@ -111,6 +131,10 @@ class Violation:
     file: str
     line: int
     message: str
+
+    @property
+    def is_warning(self) -> bool:
+        return self.rule in WARN_RULES
 
 
 @dataclass(frozen=True)
@@ -403,9 +427,23 @@ class Linter:
         self.check_imports(info)
         self.check_calls(info)
         self.check_definitions(info)
-        if info.layer in ("domain", "presentation"):
+        if info.layer in CONSTANT_LAYERS:
             self.check_magic(info)
             self.check_module_constants(info)
+        self.check_file_size(info)
+
+    def check_file_size(self, info: FileInfo) -> None:
+        source = info.path.read_text(encoding="utf-8")
+        lines = sum(1 for line in source.splitlines() if line.strip())
+        if lines > MAX_FILE_LINES:
+            self.report(
+                "file_size",
+                info.path,
+                1,
+                f"{lines} non-blank lines (> {MAX_FILE_LINES}) — the file does too much: move I/O of each "
+                "external system into its own data source, a library/tool into a service, parsing into the "
+                "model, and let the repository orchestrate them",
+            )
 
     def check_naming(self, info: FileInfo) -> None:
         name = info.name
@@ -719,6 +757,29 @@ class Linter:
 # ── Entry point ─────────────────────────────────────────────────────
 
 
+def configure(template: object) -> None:
+    """Take the folders, warnings and parameters of a template (scripts/templates.py Template).
+
+    `[structure]` → REQUIRED_SUBDIRS / OPTIONAL_SUBDIRS / STRICT_SUBDIRS; `[lint] warn` → WARN_RULES;
+    `[lint.params]`: `allowed_numbers`, `max_file_lines`, `constant_layers`.
+    """
+    global REQUIRED_SUBDIRS, OPTIONAL_SUBDIRS, STRICT_SUBDIRS, WARN_RULES, ALLOWED_NUMBERS
+    global MAX_FILE_LINES, CONSTANT_LAYERS
+    data = template.data  # type: ignore[attr-defined]
+    structure = data.get("structure", {})
+    lint = data.get("lint", {})
+    params = lint.get("params", {})
+    REQUIRED_SUBDIRS = {layer: tuple(subs) for layer, subs in structure.get("required", {}).items()}
+    for layer in LAYERS:
+        REQUIRED_SUBDIRS.setdefault(layer, ())
+    OPTIONAL_SUBDIRS = {layer: tuple(subs) for layer, subs in structure.get("optional", {}).items()}
+    STRICT_SUBDIRS = tuple(structure.get("strict_layers", ()))
+    WARN_RULES = set(lint.get("warn", ()))
+    ALLOWED_NUMBERS = set(params.get("allowed_numbers", ALLOWED_NUMBERS))
+    MAX_FILE_LINES = int(params.get("max_file_lines", MAX_FILE_LINES))
+    CONSTANT_LAYERS = tuple(params.get("constant_layers", CONSTANT_LAYERS))
+
+
 def _parse_rules(raw: str | None) -> set[str]:
     if not raw:
         return set()
@@ -767,6 +828,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ignore", default=None, help="Comma-separated rules to skip.")
     parser.add_argument("--json", action="store_true", help="Print violations as JSON.")
     parser.add_argument("--list-rules", action="store_true", help="List rules and exit.")
+    parser.add_argument(
+        "--template",
+        default=None,
+        help="Template (name@version); default: the project's .clean_arch.toml, else the skill's default.",
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     ns = parser.parse_args(argv)
 
@@ -775,7 +841,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{name:20} {desc}")
         return 0
 
-    rules = _parse_rules(ns.rules) or set(RULES)
+    # The template: its folders, warnings and parameters; the rules it turns off (only when all rules run)
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import templates  # noqa: PLC0415
+
+    try:
+        template = templates.resolve(ns.template, Path(ns.path) if ns.path else Path.cwd())
+    except templates.TemplateError as e:
+        raise SystemExit(str(e)) from e
+    configure(template)
+    rules = _parse_rules(ns.rules)
+    if not rules:
+        rules = set(RULES) - set(template.lint_off)
     rules -= _parse_rules(ns.ignore)
     violations = sorted(run(ns.path, rules), key=lambda v: (v.file, v.line, v.rule))
 
@@ -786,16 +863,27 @@ def main(argv: list[str] | None = None) -> int:
         return str(p.relative_to(cwd)) if p.is_relative_to(cwd) else path
 
     if ns.json:
-        print(json.dumps([asdict(v) | {"file": shown(v.file)} for v in violations], indent=2))
+        print(
+            json.dumps(
+                [
+                    asdict(v) | {"file": shown(v.file), "severity": "warning" if v.is_warning else "error"}
+                    for v in violations
+                ],
+                indent=2,
+            )
+        )
     else:
+        print(f"Template {template.ref}")
         for v in violations:
-            print(f"{shown(v.file)}:{v.line}: [{v.rule}] {v.message}")
+            level = " (warning)" if v.is_warning else ""
+            print(f"{shown(v.file)}:{v.line}: [{v.rule}]{level} {v.message}")
         if violations:
             counts = Counter(v.rule for v in violations)
             print(f"\n{len(violations)} violation(s): " + ", ".join(f"{r}={n}" for r, n in counts.most_common()))
         else:
             print("No clean architecture violations found.")
-    return 1 if ns.strict and violations else 0
+    errors = [v for v in violations if not v.is_warning]
+    return 1 if ns.strict and errors else 0
 
 
 if __name__ == "__main__":

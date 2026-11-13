@@ -1,0 +1,10 @@
+"""DI registration for the {{feature}}.{{subfeature}} subfeature."""
+
+from {{package}}.core.presentation.di.container import Container
+
+
+def register_{{feature}}_{{subfeature}}(container: Container) -> None:
+    """Register dependencies of the {{feature}}.{{subfeature}} subfeature.
+
+    Called from ``register_{{feature}}``; prefer feature-level DI unless asked otherwise.
+    """
