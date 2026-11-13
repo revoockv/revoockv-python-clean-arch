@@ -1,0 +1,11 @@
+# {{name}}
+
+Python clean architecture project (template `{{template}}` of revoockv-python-clean-arch):
+`data` / `domain` / `presentation` per feature, use cases, `Result[T]`, a typed DI container.
+
+```bash
+uv sync
+uv run ruff check . && uv run ruff format --check .
+uv run mypy
+uv run pytest
+```

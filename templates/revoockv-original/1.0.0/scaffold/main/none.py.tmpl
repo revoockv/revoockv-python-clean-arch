@@ -1,0 +1,14 @@
+"""Application entry point."""
+
+import asyncio
+
+from {{package}}.di import register_and_init
+
+
+async def main() -> None:
+    """Register dependencies, run initiations and start the application."""
+    await register_and_init()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
