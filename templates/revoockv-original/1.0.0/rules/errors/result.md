@@ -2,7 +2,9 @@
 
 Use `Result[T]` for expected success/failure instead of raising across layer boundaries.
 
-Canonical location: `src/<package>/core/domain/entities/result.py` (created by `init_project.py`).
+Canonical location (copied into a new project by `init_project.py`, `[scaffold] core_files`):
+
+`src/my_app/core/domain/entities/result.py`
 
 ```python
 """Result type for expected success/failure outcomes."""

@@ -13,6 +13,10 @@ uv add --dev ruff mypy pytest pytest-asyncio          # always (+ httpx2 for Fas
 uv run pytest && uv run mypy && uv run ruff check .
 ```
 
+The files come from the template: `scaffold/project/` (pyproject, README, `di.py`, core DI, tests),
+`scaffold/main/<adapter>.py.tmpl` and the `[scaffold] core_files` of `example/`. The new project gets
+`.clean_arch.toml` with this template's ref, so the linter and `init_feature.py` follow it.
+
 Options: `--here` writes into `--path` itself (e.g. an existing empty repo), `--force` writes into a
 non-empty directory without overwriting existing files.
 
@@ -39,6 +43,7 @@ disable_error_code = ["type-abstract"]   # the container is keyed by ABCs
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 ```
 
 Line length is 100. Formatting is `ruff format` (no black/isort).

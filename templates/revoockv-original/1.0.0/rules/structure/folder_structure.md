@@ -1,5 +1,9 @@
 # Folder structure
 
+The required and optional folders are the template's `[structure]` (`template.toml`); `init_project.py` and
+`init_feature.py` create them and the linter's `folder_structure` rule checks them. A working tree:
+`example/src/example_app/`.
+
 `src` layout, one app package. `core/` mirrors the feature layout: same layer folders
 (`data/`, `domain/`, `presentation/`) with the same required subfolders.
 
