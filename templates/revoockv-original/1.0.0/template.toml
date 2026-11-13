@@ -1,0 +1,118 @@
+# revoockv-original 1.0.0 — the architecture the skill had up to 0.3.0, plus the data-design rule.
+# The agent reads this file first, then only the rule files the task needs.
+
+name = "revoockv-original"
+version = "1.0.0"
+description = "Python clean architecture: ABC interfaces, mandatory use cases, Result[T], a typed DI container with getters"
+author = "revoockv"
+
+[choices]
+# Short answers to "how is it done here?"; the rule files say the details.
+python = "3.12+, src layout, uv; ruff + mypy --strict + pytest (+ pytest-asyncio)"
+layers = ["data", "domain", "presentation"]
+core = "src/<package>/core mirrors the feature layers: Result, Settings, shared data sources (the app database) and services (the clock), the Container, core DI"
+interfaces = "ABC with abstract methods: one family of classes shares one base type (repositories, data sources)"
+use_cases = "required for every user ↔ app interaction: one class per file, async __call__ only, no try/except"
+use_case_returns = ["Result[T] for every use case", "Success(None) for commands"]
+errors = "own Result[T] = Success[T] | Failure(error: str), consumed with match; repositories turn exceptions into Failure and log"
+data_design = "the repository orchestrates: one data source per external system, one service per library/tool, parsing in the model; no file over max_file_lines"
+models = "DTOs in data/models (frozen dataclasses or Pydantic) with to_entity / from_entity and wire (de)serialization"
+di = "own typed Container keyed by interfaces; register_<feature>(container) per feature, optional init_<feature>; register_and_init() in di.py; getters are the presentation's only door"
+constants = "inside the owning class (private _NAME), or a small <Name>Text / <Feature>Di constants class for module-level functions; never at module level in domain or presentation"
+async = "data sources, repositories and use cases are async; Typer commands bridge with asyncio.run"
+presentation = "framework-agnostic adapters (api/ FastAPI, cli/ Typer, any other folder): input → getter → use case → match Result → output"
+logging = "stdlib logging: one Logger built in core DI and injected by constructor; every public repository method logs 'Method: status — description'"
+tests = "every layer; hand-written fakes that inherit the domain ABC; the container reset before every test"
+git = "develop + <type>/<NNN>-<name> branches, [TYPE-NNN] commits, --no-ff merges, branches kept"
+
+[rules]
+# Topic → files (relative to this folder). Read only the topics of the task.
+workflow = ["rules/workflow.md"]
+decisions = ["rules/decisions.md"]
+structure = ["rules/structure/folder_structure.md"]
+data = ["rules/data/data_design.md", "rules/data/models_mapping.md"]
+di = ["rules/di/di_patterns.md"]
+use_cases = ["rules/use_cases/use_case_naming.md"]
+errors = ["rules/errors/result.md"]
+presentation = ["rules/presentation/presentation_patterns.md"]
+style = [
+  "rules/style/constants.md",
+  "rules/style/imports.md",
+  "rules/style/docstring_standard.md",
+  "rules/style/logging_conventions.md",
+]
+testing = ["rules/testing/testing.md"]
+git = ["rules/git/git_rules.md"]
+packages = ["rules/packages/project_setup.md"]
+example_feature = [
+  "rules/examples/auth_domain.md",
+  "rules/examples/auth_data.md",
+  "rules/examples/auth_presentation.md",
+]
+
+[structure]
+# Layers that accept no other subfolders than the ones below.
+strict_layers = ["data", "domain"]
+
+[structure.required]
+# Folders of every feature and of core/; init_feature / init_project create them, folder_structure checks them.
+data = ["data_sources", "models", "repositories"]
+domain = ["entities", "repositories", "use_cases"]
+presentation = ["di"]
+
+[structure.optional]
+# Allowed, not required (presentation also takes any adapter folder: api/, cli/, worker/ …).
+data = ["services"]
+
+[scaffold]
+# Files `init_project` copies from the example (relative to src/<package>/), with the package renamed.
+core_files = [
+  "core/domain/entities/result.py",
+  "core/presentation/di/container.py",
+]
+# Stub files: scaffold/project/ (init_project), scaffold/feature/ and scaffold/subfeature/ (under the
+# feature), scaffold/adapters/<adapter>/ (under the feature). `{{package}}`, `{{dist}}`, `{{name}}`,
+# `{{feature}}`, `{{Feature}}`, `{{feature_slug}}`, `{{subfeature}}`, `{{Subfeature}}` are filled in.
+next_step = "implement domain → data → presentation/di → adapter, then run the quality gate"
+
+[scaffold.adapters]
+# Adapter → main.py stub (scaffold/main/<adapter>.py.tmpl) and the packages it needs.
+none = { dependencies = [], dev = [] }
+fastapi = { dependencies = ["fastapi", "uvicorn"], dev = ["httpx2"] }
+typer = { dependencies = ["typer"], dev = [] }
+
+[scaffold.wiring]
+# Lines init_feature inserts: the import after the last import of `file`, `line` before `# </marker>`.
+feature = { file = "di.py", marker = "features", import = "from {{package}}.features.{{feature}}.presentation.di.{{feature}}_di import register_{{feature}}", line = "register_{{feature}}(container)" }
+fastapi = { file = "main.py", marker = "routers", import = "from {{package}}.features.{{feature}}.presentation.api.{{feature}}_router import router as {{feature}}_router", line = "app.include_router({{feature}}_router)" }
+typer = { file = "main.py", marker = "commands", import = "from {{package}}.features.{{feature}}.presentation.cli.{{feature}}_commands import commands as {{feature}}_commands", line = "app.add_typer({{feature}}_commands, name=\"{{feature_slug}}\")" }
+
+[scaffold.dev_dependencies]
+# Always added to a new project.
+packages = ["ruff", "mypy", "pytest", "pytest-asyncio"]
+
+[example]
+# The project built with every rule of this template; selfcheck verifies it.
+path = "example"
+package = "example_app"
+# Rules import `<docs_package>.…`; selfcheck compiles their code inside the example.
+docs_package = "my_app"
+# Rule code blocks under these paths are compiled; those under `same_as_example` must equal the example's files.
+doc_paths = ["src/my_app/core/", "src/my_app/features/auth/"]
+same_as_example = ["src/my_app/core/"]
+# The doc-only feature compiled in the example and linted on its own.
+doc_feature = "src/my_app/features/auth"
+
+[lint]
+# Rules this template turns off (none: all 23 apply).
+off = []
+# Rules reported as warnings: shown, but `--strict` does not fail on them.
+warn = []
+
+[lint.params]
+# Numbers allowed outside class constants.
+allowed_numbers = [-1, 0, 1, 2]
+# Longest file, in non-blank lines; a longer one mixes several jobs (rules/data/data_design.md).
+max_file_lines = 200
+# Layers whose function bodies may not hold literals and whose modules may not hold constants.
+constant_layers = ["domain", "presentation"]
