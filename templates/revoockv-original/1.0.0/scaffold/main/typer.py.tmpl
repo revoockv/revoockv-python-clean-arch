@@ -1,0 +1,21 @@
+"""Application entry point (Typer CLI). Run: uv run {{dist}}."""
+
+import asyncio
+
+import typer
+
+from {{package}}.di import register_and_init
+
+app = typer.Typer(no_args_is_help=True)
+# <commands>
+# </commands>
+
+
+@app.callback()
+def bootstrap() -> None:
+    """Register dependencies and run initiations before any command."""
+    asyncio.run(register_and_init())
+
+
+if __name__ == "__main__":
+    app()

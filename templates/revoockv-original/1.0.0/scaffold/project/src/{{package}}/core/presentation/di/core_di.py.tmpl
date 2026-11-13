@@ -1,0 +1,21 @@
+"""Core DI: dependencies shared by every feature."""
+
+import logging
+
+from {{package}}.core.presentation.di.container import Container
+
+
+class CoreDi:
+    """Configuration values used by ``register_core``."""
+
+    LOGGER_NAME = "{{package}}"
+    LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+
+
+def register_core(container: Container) -> None:
+    """Register core singletons (the application ``logging.Logger``).
+
+    Must run first in ``register_and_init`` because every repository receives the logger.
+    """
+    logging.basicConfig(level=logging.INFO, format=CoreDi.LOG_FORMAT)
+    container.register_singleton(logging.Logger, logging.getLogger(CoreDi.LOGGER_NAME))

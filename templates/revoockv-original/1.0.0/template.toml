@@ -74,13 +74,14 @@ core_files = [
 # Stub files: scaffold/project/ (init_project), scaffold/feature/ and scaffold/subfeature/ (under the
 # feature), scaffold/adapters/<adapter>/ (under the feature). `{{package}}`, `{{dist}}`, `{{name}}`,
 # `{{feature}}`, `{{Feature}}`, `{{feature_slug}}`, `{{subfeature}}`, `{{Subfeature}}` are filled in.
+# scaffold/feature_tests/ goes under tests/features/<feature>/.
 next_step = "implement domain → data → presentation/di → adapter, then run the quality gate"
 
 [scaffold.adapters]
 # Adapter → main.py stub (scaffold/main/<adapter>.py.tmpl) and the packages it needs.
 none = { dependencies = [], dev = [] }
 fastapi = { dependencies = ["fastapi", "uvicorn"], dev = ["httpx2"] }
-typer = { dependencies = ["typer"], dev = [] }
+typer = { dependencies = ["typer"], dev = [], script = "{{package}}.main:app" }
 
 [scaffold.wiring]
 # Lines init_feature inserts: the import after the last import of `file`, `line` before `# </marker>`.
