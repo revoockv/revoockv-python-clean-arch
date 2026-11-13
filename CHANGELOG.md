@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.4.0] - 2026-11-13
+
+### Changed
+- The rules live in versioned templates (`templates/<name>/<version>/`), like revoockv-flutter-clean-arch:
+  `template.toml` (choices, topics, folders, scaffold, example, lint), `rules/<topic>/*.md`, `scaffold/` and a runnable
+  `example/`. The rules up to 0.3.0 are template `revoockv-original@1.0.0`, the default (`templates/index.toml`).
+  `references/` and `DECISIONS.md` moved into it.
+- `SKILL.md` is a router: find the project's template, read only the topics of the task.
+- `init_project.py` / `init_feature.py` build from the template's `scaffold/` and `[scaffold]` (adapters, wiring,
+  core files) instead of code inside the scripts; `init_project.py` writes `.clean_arch.toml`; `--template` on both.
+- The linter follows the project's template: `[structure]`, `[lint] off`, `[lint] warn` (warnings do not fail
+  `--strict`), `[lint.params]` `allowed_numbers`, `max_file_lines`, `constant_layers`; `--template`; JSON output has
+  `severity`.
+
+### Added
+- Lint rule `file_size` (23 rules): a file over `max_file_lines` non-blank lines must be split into data sources,
+  services and models that the repository orchestrates (`rules/data/data_design.md`).
+- `scripts/templates.py` (list, show, rules, use, set-default, new, bump, validate), `scripts/scaffold.py`,
+  `scripts/selfcheck.py`, `tests/test_linter.py`.
+- `README.md`, `LICENSE` (MIT), `docs/constructor.md`, `docs/linter.md`, `docs/example_app.md`.
+
+---
+
 ## [0.3.0] - 2026-10-13
 
 ### Changed
