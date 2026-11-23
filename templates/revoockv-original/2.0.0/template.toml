@@ -24,6 +24,7 @@ presentation = "framework-agnostic adapters (api/ FastAPI, cli/ Typer, any other
 logging = "stdlib logging: one Logger built in core DI and injected by constructor; every public repository method logs 'Method: status — description'"
 tests = "every layer; hand-written fakes that inherit the domain ABC; the container reset before every test"
 git = "develop + <type>/<NNN>-<name> branches, [TYPE-NNN] commits, --no-ff merges, branches kept"
+ci = "GitHub Actions (.github/workflows/ci.yml from the scaffold): the quality gate on every push and pull request; a tag vX.Y.Z also makes the GitHub release from CHANGELOG.md"
 
 [rules]
 # Topic → files (relative to this folder). Read only the topics of the task.
@@ -43,6 +44,7 @@ style = [
 ]
 testing = ["rules/testing/testing.md"]
 git = ["rules/git/git_rules.md"]
+ci = ["rules/ci/ci_cd.md"]
 packages = ["rules/packages/project_setup.md"]
 example_feature = [
   "rules/examples/auth_domain.md",

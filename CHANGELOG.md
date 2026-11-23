@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `[lint] on`.
 - `scripts/check_versions.py`: the `>=` bounds of a template's `example/pyproject.toml` vs PyPI (`[packages] tracked`
   narrows them); `--strict`, `--update`. revoockv-original@2.0.0 is on the latest versions.
+- CI/CD of the skill: `.github/workflows/test.yml` (templates validate + selfcheck on every push and pull request) and
+  `release.yml` (a pushed tag `vX.Y.Z` → selfcheck → the GitHub release from the `## [X.Y.Z]` section of this file).
+- revoockv-original@2.0.0 topic `ci`: projects get `.github/workflows/ci.yml` from the scaffold.
 
 ---
 

@@ -94,6 +94,13 @@ python3 scripts/selfcheck.py
 
 `selfcheck.py` needs [uv](https://docs.astral.sh/uv/) and network access to PyPI; `--no-uv` skips those steps.
 
+## CI/CD
+
+GitHub Actions: `.github/workflows/test.yml` runs `templates.py validate --all` and `selfcheck.py` on every push to
+`main` / `develop` and every pull request; a pushed tag `vX.Y.Z` (`release.yml`) runs the self-check and creates the
+GitHub release with the `## [X.Y.Z]` section of [CHANGELOG.md](CHANGELOG.md). Projects made with
+`revoockv-original@2.0.0` get their own `.github/workflows/ci.yml` (topic `ci`).
+
 ## Versioning
 
 [Semantic Versioning](https://semver.org/) for the skill ([CHANGELOG.md](CHANGELOG.md)) and, separately, for every template (`templates/<name>/CHANGELOG.md`).

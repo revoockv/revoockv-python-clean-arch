@@ -11,6 +11,8 @@ Versions of this template. The skill itself has its own versions (`CHANGELOG.md`
 - The example: `NoteFailure` (`NOT_FOUND` from the new `RowNotFoundError`), `StatisticsFailure`; the auth feature of
   the rules: `AuthFailure`, `InvalidCredentialsError`, `AuthFailureText`.
 - `[lint] on = ["typed_failures"]`.
+- New topic `ci` (`rules/ci/ci_cd.md`): `init_project.py` writes `.github/workflows/ci.yml` — the quality gate on
+  every push and pull request, the GitHub release from `CHANGELOG.md` on a tag `vX.Y.Z`.
 
 ## [1.0.0] - 2026-11-13
 
