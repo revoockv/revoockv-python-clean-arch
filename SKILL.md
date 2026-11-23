@@ -2,7 +2,7 @@
 name: revoockv-python-clean-arch
 description: Build Python projects by a chosen clean-architecture template (default revoockv-original - data / domain / presentation per feature, mandatory use cases, Result[T, F] with typed failures, ABC interfaces, own typed DI container with getters, uv + ruff + mypy --strict + pytest) and manage those templates. Use when the user asks to create a new Python project or feature, add use cases / repositories / data sources / services / DTO models, wire DI, add a FastAPI or Typer (or other) adapter, refactor an existing Python codebase into clean architecture, split a big module, check a project against the rules (linter), or to create, change, version, choose or validate an architecture template (folders, DI, use cases, errors, code style, tests, git rules).
 metadata:
-  version: 0.4.0
+  version: 0.5.0
   author: revoockv
 ---
 
