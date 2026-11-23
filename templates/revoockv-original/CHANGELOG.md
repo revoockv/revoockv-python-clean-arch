@@ -2,6 +2,18 @@
 
 Versions of this template. The skill itself has its own versions (`CHANGELOG.md` in the skill root).
 
+## [2.0.0] - 2026-11-23
+
+- **Typed failures**: `Result[T, F]` and `Failure[F]` carry a member of the feature's failure type
+  (`domain/entities/<feature>_failure.py`, an `Enum` with a `FailureKind`), never text. The text lives in
+  `presentation/text/<feature>_failure_text.py` (exhaustive `match`), the HTTP status in
+  `core/presentation/api/failure_status.py`. `failure_kind.py` is a core file of the scaffold.
+- The example: `NoteFailure` (`NOT_FOUND` from the new `RowNotFoundError`), `StatisticsFailure`; the auth feature of
+  the rules: `AuthFailure`, `InvalidCredentialsError`, `AuthFailureText`.
+- `[lint] on = ["typed_failures"]`.
+- New topic `ci` (`rules/ci/ci_cd.md`): `init_project.py` writes `.github/workflows/ci.yml` — the quality gate on
+  every push and pull request, the GitHub release from `CHANGELOG.md` on a tag `vX.Y.Z`.
+
 ## [1.0.0] - 2026-11-13
 
 - The rules of the skill up to 0.3.0, split by topic (`rules/<topic>/`), with `template.toml`, `scaffold/` and an

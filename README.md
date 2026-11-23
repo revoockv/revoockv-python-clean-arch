@@ -40,16 +40,15 @@ Ask the agent in plain words, for example:
 
 The agent follows `SKILL.md` and the template's rules, then runs ruff, mypy, pytest and the linter.
 
-## What it enforces (template `revoockv-original`)
+## Templates
 
-- **Layers per feature:** `data` / `domain` / `presentation`; `core` mirrors the same layout.
-- **Use cases:** one per user ↔ app interaction; one class, async `__call__`, no try/except.
-- **Results:** `Result[T] = Success[T] | Failure`, consumed with `match`; repositories turn exceptions into `Failure` and log.
-- **Data design:** one data source per external system, one service per library or tool, parsing in the model, the repository orchestrates them; no file over 200 lines.
-- **Interfaces:** `ABC` base classes, so one family of classes shares one type.
-- **DI:** an own typed `Container`; `register_<feature>(container)` per feature; adapters reach use cases only through `<feature>_getters.py`.
-- **Constants:** inside the owning class, never at module level in domain or presentation.
-- **Tooling:** Python 3.12+, uv, ruff, `mypy --strict`, pytest; Google docstrings on every public declaration; stdlib logging injected by constructor.
+| Template | In short |
+|---|---|
+| `revoockv-original@2.0.0` (default) | data / domain / presentation per feature, use cases, `Result[T, F]` with typed failures, own typed DI container |
+| `revoockv-original@1.0.0` | the same with text failures, for the projects made with it |
+
+What a template enforces, and the packages it pins, are in its own files: `templates/<name>/<version>/template.toml`
+(the choices), `rules/` and `templates/<name>/CHANGELOG.md`.
 
 ## Contents
 
@@ -73,8 +72,8 @@ Run them from the skill folder with Python 3.12+ (no third-party packages needed
 # templates: list, show, choose, create, version, validate
 python3 scripts/templates.py list
 python3 scripts/templates.py show --project path/to/project
-python3 scripts/templates.py use revoockv-original@1.0.0 --project path/to/project
-python3 scripts/templates.py new my-arch --from revoockv-original@1.0.0
+python3 scripts/templates.py use revoockv-original@2.0.0 --project path/to/project
+python3 scripts/templates.py new my-arch --from revoockv-original@2.0.0
 python3 scripts/templates.py bump my-arch --to 1.1.0
 python3 scripts/templates.py validate --all
 
@@ -82,14 +81,24 @@ python3 scripts/templates.py validate --all
 python3 scripts/init_project.py --name my-app --adapter typer
 python3 scripts/init_feature.py --feature notes --adapter typer
 
-# architecture linter (23 rules)
+# architecture linter (it follows the project's template)
 python3 scripts/py_clean_arch_linter.py path/to/project --strict
+
+# the template's pinned packages vs PyPI (--update raises them)
+python3 scripts/check_versions.py
 
 # self-check of every template: rules vs example, example quality gate, scaffold for every adapter
 python3 scripts/selfcheck.py
 ```
 
 `selfcheck.py` needs [uv](https://docs.astral.sh/uv/) and network access to PyPI; `--no-uv` skips those steps.
+
+## CI/CD
+
+GitHub Actions: `.github/workflows/test.yml` runs `templates.py validate --all` and `selfcheck.py` on every push to
+`main` / `develop` and every pull request; a pushed tag `vX.Y.Z` (`release.yml`) runs the self-check and creates the
+GitHub release with the `## [X.Y.Z]` section of [CHANGELOG.md](CHANGELOG.md). Projects made with
+`revoockv-original@2.0.0` get their own `.github/workflows/ci.yml` (topic `ci`).
 
 ## Versioning
 

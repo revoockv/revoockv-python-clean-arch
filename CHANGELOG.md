@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.0] - 2026-11-23
+
+### Changed
+- README is short: what the skill is for, install, use, templates, scripts, CI/CD. What a template enforces
+  lives only in the template.
+
+### Added
+- Template `revoockv-original@2.0.0`, the new default: **typed failures**. `Result[T, F]`, a failure `Enum` per
+  feature with a `FailureKind`, the text in `presentation/text/`, `FailureKind` → HTTP status in
+  `core/presentation/api/failure_status.py` (template changelog). 1.0.0 stays for the projects that use it.
+- Opt-in lint rules, turned on by a template's `[lint] on` (templates made before them keep passing):
+  `typed_failures` — `Result[T]` without its failure type, and `Failure(<text>)`. `templates.py validate` checks
+  `[lint] on`.
+- `scripts/check_versions.py`: the `>=` bounds of a template's `example/pyproject.toml` vs PyPI (`[packages] tracked`
+  narrows them); `--strict`, `--update`. revoockv-original@2.0.0 is on the latest versions.
+- CI/CD of the skill: `.github/workflows/test.yml` (templates validate + selfcheck on every push and pull request) and
+  `release.yml` (a pushed tag `vX.Y.Z` → selfcheck → the GitHub release from the `## [X.Y.Z]` section of this file).
+- revoockv-original@2.0.0 topic `ci`: projects get `.github/workflows/ci.yml` from the scaffold.
+
+---
+
 ## [0.4.0] - 2026-11-13
 
 ### Changed
