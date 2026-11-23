@@ -2,6 +2,10 @@
 
 Versions of this template. The skill itself has its own versions (`CHANGELOG.md` in the skill root).
 
+## [2.0.0]
+
+- Made from revoockv-original@1.0.0.
+
 ## [1.0.0] - 2026-11-13
 
 - The rules of the skill up to 0.3.0, split by topic (`rules/<topic>/`), with `template.toml`, `scaffold/` and an
