@@ -33,7 +33,8 @@ prints the files to read. Topics (`[rules]` of `template.toml`):
 | "Which pattern for X?" | `decisions` |
 | Constants, imports, docstrings, logging | `style` |
 | Tests | `testing` |
-| Commits, branches, merges, releases | `git` |
+| Commits, branches, merges, releases | `git`, `ci` |
+| CI, GitHub releases, publishing | `ci` |
 | pyproject, uv, tooling | `packages` |
 
 Do not read every topic up front: each costs context. A rule that names `example/<path>` points to working code in the template folder: open that file when you need the code.

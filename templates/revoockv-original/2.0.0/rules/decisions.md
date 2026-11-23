@@ -69,4 +69,5 @@ The short answer first; the rule file in brackets has the details.
 | Test a repository | an in-memory or fake data source |
 | Test an adapter | `TestClient(create_app())` / `CliRunner` over the app, or fakes registered in the container |
 | Commit, branch, release | `git/git_rules.md` |
+| CI, a GitHub release, publishing to PyPI | `.github/workflows/ci.yml` from the scaffold (`ci/ci_cd.md`) |
 | Ignore a lint rule | only when the user asks (`--ignore`); for good: a new template version with it in `[lint] off` |
