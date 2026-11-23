@@ -1,0 +1,26 @@
+"""Application entry point (FastAPI). Run: uv run uvicorn {{package}}.main:app --reload."""
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+
+from {{package}}.di import register_and_init
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Register dependencies and run initiations before serving requests."""
+    await register_and_init()
+    yield
+
+
+def create_app() -> FastAPI:
+    """Build the FastAPI application and include every feature router."""
+    app = FastAPI(lifespan=lifespan)
+    # <routers>
+    # </routers>
+    return app
+
+
+app = create_app()

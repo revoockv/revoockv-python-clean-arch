@@ -1,0 +1,10 @@
+"""DI registration for the {{feature}} feature."""
+
+from {{package}}.core.presentation.di.container import Container
+
+
+def register_{{feature}}(container: Container) -> None:
+    """Register data sources, repositories and use cases of the {{feature}} feature.
+
+    Order: data sources → repositories (by domain interface) → use cases.
+    """

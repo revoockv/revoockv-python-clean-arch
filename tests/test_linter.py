@@ -43,6 +43,45 @@ class LinterTest(unittest.TestCase):
     def rules(self, path: Path, only: set[str] | None = None) -> list[str]:
         return [v.rule for v in linter.run(str(path), only or set(linter.RULES))]
 
+    def test_typed_failures_flags_text_and_untyped_result(self) -> None:
+        path = self.write(
+            "features/notes/domain/use_cases/add_note_use_case.py",
+            '''
+            class AddNoteUseCase:
+                """Add."""
+
+                _EMPTY = "empty"
+
+                async def __call__(self, *, text: str) -> Result[Note]:
+                    """Run."""
+                    if not text:
+                        return Failure(self._EMPTY)
+                    return Failure(f"bad {text}")
+            ''',
+        )
+        self.assertEqual(self.rules(path, {"typed_failures"}), ["typed_failures"] * 3)
+
+    def test_typed_failures_accepts_a_failure_member(self) -> None:
+        path = self.write(
+            "features/notes/data/repositories/notes_repository_impl.py",
+            '''
+            async def f() -> Result[Note, NoteFailure]:
+                return Failure(NoteFailure.STORAGE)
+            ''',
+        )
+        self.assertEqual(self.rules(path, {"typed_failures"}), [])
+
+    def test_typed_failures_is_opt_in(self) -> None:
+        self.assertIn("typed_failures", linter.OPT_IN_RULES)
+        self.assertNotIn("typed_failures", templates.load("revoockv-original@1.0.0").lint_on)
+        self.assertIn("typed_failures", templates.load("revoockv-original@2.0.0").lint_on)
+
+    def test_lint_on_takes_only_opt_in_rules(self) -> None:
+        template = templates.load("revoockv-original@2.0.0")
+        template.data["lint"]["on"] = ["no_print"]
+        errors, _ = templates.problems(template)
+        self.assertTrue(any("lint.on" in e for e in errors))
+
     def test_module_constant_in_domain(self) -> None:
         path = self.write("features/notes/domain/entities/note.py", 'LIMIT = 3\n')
         self.assertIn("module_constants", self.rules(path))
