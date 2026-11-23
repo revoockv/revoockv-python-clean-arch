@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- README is short: what the skill is for, install, use, templates, scripts, CI/CD. What a template enforces
+  lives only in the template.
+
 ### Added
 - Template `revoockv-original@2.0.0`, the new default: **typed failures**. `Result[T, F]`, a failure `Enum` per
   feature with a `FailureKind`, the text in `presentation/text/`, `FailureKind` → HTTP status in

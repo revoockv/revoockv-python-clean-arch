@@ -40,16 +40,15 @@ Ask the agent in plain words, for example:
 
 The agent follows `SKILL.md` and the template's rules, then runs ruff, mypy, pytest and the linter.
 
-## What it enforces (template `revoockv-original`)
+## Templates
 
-- **Layers per feature:** `data` / `domain` / `presentation`; `core` mirrors the same layout.
-- **Use cases:** one per user ↔ app interaction; one class, async `__call__`, no try/except.
-- **Results:** `Result[T] = Success[T] | Failure`, consumed with `match`; repositories turn exceptions into `Failure` and log.
-- **Data design:** one data source per external system, one service per library or tool, parsing in the model, the repository orchestrates them; no file over 200 lines.
-- **Interfaces:** `ABC` base classes, so one family of classes shares one type.
-- **DI:** an own typed `Container`; `register_<feature>(container)` per feature; adapters reach use cases only through `<feature>_getters.py`.
-- **Constants:** inside the owning class, never at module level in domain or presentation.
-- **Tooling:** Python 3.12+, uv, ruff, `mypy --strict`, pytest; Google docstrings on every public declaration; stdlib logging injected by constructor.
+| Template | In short |
+|---|---|
+| `revoockv-original@2.0.0` (default) | data / domain / presentation per feature, use cases, `Result[T, F]` with typed failures, own typed DI container |
+| `revoockv-original@1.0.0` | the same with text failures, for the projects made with it |
+
+What a template enforces, and the packages it pins, are in its own files: `templates/<name>/<version>/template.toml`
+(the choices), `rules/` and `templates/<name>/CHANGELOG.md`.
 
 ## Contents
 
@@ -82,7 +81,7 @@ python3 scripts/templates.py validate --all
 python3 scripts/init_project.py --name my-app --adapter typer
 python3 scripts/init_feature.py --feature notes --adapter typer
 
-# architecture linter (23 rules + opt-in typed_failures)
+# architecture linter (it follows the project's template)
 python3 scripts/py_clean_arch_linter.py path/to/project --strict
 
 # the template's pinned packages vs PyPI (--update raises them)
