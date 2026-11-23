@@ -73,8 +73,8 @@ Run them from the skill folder with Python 3.12+ (no third-party packages needed
 # templates: list, show, choose, create, version, validate
 python3 scripts/templates.py list
 python3 scripts/templates.py show --project path/to/project
-python3 scripts/templates.py use revoockv-original@1.0.0 --project path/to/project
-python3 scripts/templates.py new my-arch --from revoockv-original@1.0.0
+python3 scripts/templates.py use revoockv-original@2.0.0 --project path/to/project
+python3 scripts/templates.py new my-arch --from revoockv-original@2.0.0
 python3 scripts/templates.py bump my-arch --to 1.1.0
 python3 scripts/templates.py validate --all
 
@@ -82,8 +82,11 @@ python3 scripts/templates.py validate --all
 python3 scripts/init_project.py --name my-app --adapter typer
 python3 scripts/init_feature.py --feature notes --adapter typer
 
-# architecture linter (23 rules)
+# architecture linter (23 rules + opt-in typed_failures)
 python3 scripts/py_clean_arch_linter.py path/to/project --strict
+
+# the template's pinned packages vs PyPI (--update raises them)
+python3 scripts/check_versions.py
 
 # self-check of every template: rules vs example, example quality gate, scaffold for every adapter
 python3 scripts/selfcheck.py

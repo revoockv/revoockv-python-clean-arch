@@ -45,6 +45,7 @@ Do not read every topic up front: each costs context. A rule that names `example
 | `scripts/init_project.py --name <n> [--adapter none\|fastapi\|typer]` | A new project from the template's scaffold; writes `.clean_arch.toml` |
 | `scripts/init_feature.py --feature <f> [--adapter …] [--subfeature <s>]` | Feature folders, DI stubs, adapter stubs, test packages; wires `di.py` / `main.py` |
 | `scripts/py_clean_arch_linter.py [path] [--strict]` | Architecture linter (23 rules + opt-in `typed_failures`) — run it after every change; it follows the template. Details: `docs/linter.md` |
+| `scripts/check_versions.py [--template REF] [--update]` | The template's pinned packages (`example/pyproject.toml`) vs PyPI; `--update` raises them, then `uv lock` and `selfcheck.py` |
 | `scripts/selfcheck.py [--template REF]` | Every template: rules vs example, example quality gate, scaffold for every adapter. Run it after changing the skill or a template |
 
 The quality gate of a project — a task is done only when all pass:

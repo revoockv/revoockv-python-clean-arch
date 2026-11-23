@@ -15,6 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Opt-in lint rules, turned on by a template's `[lint] on` (templates made before them keep passing):
   `typed_failures` — `Result[T]` without its failure type, and `Failure(<text>)`. `templates.py validate` checks
   `[lint] on`.
+- `scripts/check_versions.py`: the `>=` bounds of a template's `example/pyproject.toml` vs PyPI (`[packages] tracked`
+  narrows them); `--strict`, `--update`. revoockv-original@2.0.0 is on the latest versions.
 
 ---
 
