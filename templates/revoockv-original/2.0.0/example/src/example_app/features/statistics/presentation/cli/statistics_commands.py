@@ -8,6 +8,9 @@ from example_app.core.domain.entities.result import Failure, Success
 from example_app.features.statistics.presentation.di.statistics_getters import (
     get_notes_statistics_use_case,
 )
+from example_app.features.statistics.presentation.text.statistics_failure_text import (
+    StatisticsFailureText,
+)
 
 commands = typer.Typer(help="Statistics commands.", no_args_is_help=True)
 
@@ -31,6 +34,6 @@ def show() -> None:
                     edited=statistics.edited,
                 )
             )
-        case Failure(error):
-            typer.echo(error, err=True)
+        case Failure(failure):
+            typer.echo(StatisticsFailureText.of(failure), err=True)
             raise typer.Exit(code=1)

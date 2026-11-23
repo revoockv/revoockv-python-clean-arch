@@ -35,15 +35,13 @@ The linter derives the expected class name from the file name (`naming_class`).
 class AddSongUseCase:
     """Adds a song to the current user's library."""
 
-    _EMPTY_TITLE_ERROR = "Title must not be empty"
-
     def __init__(self, repository: SongRepository) -> None:
         self._repository = repository
 
-    async def __call__(self, *, title: str, author: str) -> Result[Song]:
+    async def __call__(self, *, title: str, author: str) -> Result[Song, SongFailure]:
         """Add a song; fails when the title is empty."""
         if not title.strip():
-            return Failure(self._EMPTY_TITLE_ERROR)
+            return Failure(SongFailure.EMPTY_TITLE)
         return await self._repository.add_song(title=title, author=author)
 ```
 
@@ -51,7 +49,7 @@ Rules (`use_case_shape`, `use_case_no_try`, `import_violation`):
 
 - Exactly one class per file; the only public method is `__call__` (async when the repository is async).
 - Dependencies (domain repository interfaces, other use cases) come in through `__init__`.
-- No try/except — repositories already convert errors to `Failure`.
+- No try/except — repositories already turn exceptions into `Failure(<member>)`.
 - Business rules live here (validation, combining repositories, policies). Mapping, I/O and
   framework code never do.
 - Imports: stdlib, `core.domain`, own/other features' `domain` only.

@@ -8,8 +8,8 @@ check generic Python quality, this checks layering, naming and project conventio
 
 The linter follows the project's template (`.clean_arch.toml` next to `pyproject.toml`, else the
 skill's default template; `--template REF` for one run): `[structure]` sets the folders,
-`[lint] off` turns rules off, `[lint] warn` makes rules warnings that `--strict` does not fail on,
-and `[lint.params]` sets `allowed_numbers`, `max_file_lines` and `constant_layers`.
+`[lint] off` turns rules off, `[lint] on` turns opt-in rules on, `[lint] warn` makes rules warnings that
+`--strict` does not fail on, and `[lint.params]` sets `allowed_numbers`, `max_file_lines` and `constant_layers`.
 
 Usage:
   python3 scripts/py_clean_arch_linter.py                          # whole project (src/<package>)
@@ -21,7 +21,7 @@ Usage:
   python3 scripts/py_clean_arch_linter.py --list-rules
   python3 scripts/py_clean_arch_linter.py --template revoockv-original@1.0.0
 
-Rules (all enabled by default):
+Rules (all enabled by default, except the opt-in ones a template turns on with `[lint] on`):
   folder_structure    — feature/core folders must match data/domain/presentation layout
   naming_file         — snake_case files with layer suffixes (_use_case.py, _repository.py, _service.py, ...)
   naming_class        — class names must match their file (sign_in_use_case.py → SignInUseCase)
@@ -46,6 +46,7 @@ Rules (all enabled by default):
   di_naming           — <feature>_di.py with register_<feature>(), <feature>_getters.py, wired in di.py
   file_size           — a file longer than max_file_lines does too much: split it into data sources,
                         services and models that the repository orchestrates
+  typed_failures      — opt-in: Result[T, F] names its failure type, and Failure() never carries text
 """
 
 from __future__ import annotations
@@ -60,7 +61,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterator
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 RULES: dict[str, str] = {
     "folder_structure": "feature/core folders must match data/domain/presentation layout",
@@ -86,8 +87,11 @@ RULES: dict[str, str] = {
     "module_constants": "constants live in the owning class, not at module level",
     "di_naming": "<feature>_di.py / register_<feature>() / <feature>_getters.py / wired in di.py",
     "file_size": "a file longer than max_file_lines must be split (data sources, services, models)",
+    "typed_failures": "opt-in: Result[T, F] names its failure type; Failure() never carries text",
 }
 ALL_RULES = set(RULES)
+# Rules that run only when the template lists them in `[lint] on` (templates made before them keep passing)
+OPT_IN_RULES = {"typed_failures"}
 
 LAYERS = ("data", "domain", "presentation")
 # The defaults below are replaced by the project's template in configure().
@@ -292,6 +296,41 @@ def _mentions_name(node: ast.AST | None, name: str) -> bool:
     return False
 
 
+def _text_constants(tree: ast.Module) -> set[str]:
+    """Names of the module and class constants whose value is a string."""
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Module, ast.ClassDef)):
+            continue
+        for stmt in node.body:
+            value = stmt.value if isinstance(stmt, (ast.Assign, ast.AnnAssign)) else None
+            if not (isinstance(value, ast.Constant) and isinstance(value.value, str)):
+                continue
+            targets = stmt.targets if isinstance(stmt, ast.Assign) else [stmt.target]  # type: ignore[union-attr]
+            names.update(t.id for t in targets if isinstance(t, ast.Name))
+    return names
+
+
+def _is_text(node: ast.expr, text_names: set[str]) -> bool:
+    """Whether [node] is text: a string, an f-string, str(…), ….format(…), or a string constant."""
+    if isinstance(node, ast.Constant):
+        return isinstance(node.value, str)
+    if isinstance(node, ast.JoinedStr):
+        return True
+    if isinstance(node, ast.BinOp):
+        return _is_text(node.left, text_names) or _is_text(node.right, text_names)
+    if isinstance(node, ast.Call):
+        func = node.func
+        return (isinstance(func, ast.Name) and func.id in ("str", "repr")) or (
+            isinstance(func, ast.Attribute) and func.attr == "format"
+        )
+    if isinstance(node, ast.Name):
+        return node.id in text_names
+    if isinstance(node, ast.Attribute):
+        return node.attr in text_names
+    return False
+
+
 def _imported_modules(tree: ast.Module) -> Iterator[tuple[int, str, int]]:
     """Yield (line, module path, relative level) for every import in the file."""
     for node in ast.walk(tree):
@@ -431,6 +470,36 @@ class Linter:
             self.check_magic(info)
             self.check_module_constants(info)
         self.check_file_size(info)
+        self.check_failures(info)
+
+    def check_failures(self, info: FileInfo) -> None:
+        """`typed_failures`: `Result[T]` without its failure type, and `Failure(<text>)`."""
+        if "typed_failures" not in self.rules:
+            return
+        text_names = _text_constants(info.tree)
+        for node in ast.walk(info.tree):
+            if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "Result":
+                arity = len(node.slice.elts) if isinstance(node.slice, ast.Tuple) else 1
+                if arity != 2:
+                    self.report(
+                        "typed_failures",
+                        info.path,
+                        node.lineno,
+                        "Result needs its failure type: Result[T, <Feature>Failure]",
+                    )
+            elif (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "Failure"
+                and node.args
+                and _is_text(node.args[0], text_names)
+            ):
+                self.report(
+                    "typed_failures",
+                    info.path,
+                    node.lineno,
+                    "Failure(<text>) — pass a member of the feature's failure type; its text lives in presentation",
+                )
 
     def check_file_size(self, info: FileInfo) -> None:
         source = info.path.read_text(encoding="utf-8")
@@ -841,7 +910,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{name:20} {desc}")
         return 0
 
-    # The template: its folders, warnings and parameters; the rules it turns off (only when all rules run)
+    # The template: its folders, warnings and parameters; the rules it turns off and the opt-in rules it turns on
+    # (only when all rules run)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import templates  # noqa: PLC0415
 
@@ -852,7 +922,7 @@ def main(argv: list[str] | None = None) -> int:
     configure(template)
     rules = _parse_rules(ns.rules)
     if not rules:
-        rules = set(RULES) - set(template.lint_off)
+        rules = set(RULES) - set(template.lint_off) - (OPT_IN_RULES - set(template.lint_on))
     rules -= _parse_rules(ns.ignore)
     violations = sorted(run(ns.path, rules), key=lambda v: (v.file, v.line, v.rule))
 

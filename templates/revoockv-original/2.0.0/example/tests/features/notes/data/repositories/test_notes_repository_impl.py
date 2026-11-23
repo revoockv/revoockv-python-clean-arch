@@ -9,6 +9,7 @@ from example_app.features.notes.data.data_sources.database_notes_data_source imp
     DatabaseNotesDataSource,
 )
 from example_app.features.notes.data.repositories.notes_repository_impl import NotesRepositoryImpl
+from example_app.features.notes.domain.entities.note_failure import NoteFailure
 from tests.conftest import FixedClockService
 
 
@@ -22,23 +23,23 @@ async def test_add_list_update_delete(clock: FixedClockService) -> None:
     match await repository.add_note(text="first"):
         case Success(first):
             pass
-        case Failure(error):
-            raise AssertionError(error)
+        case Failure(failure):
+            raise AssertionError(failure)
     clock.moment += timedelta(minutes=1)
     await repository.add_note(text="second")
 
     match await repository.list_notes():
         case Success(notes):
             assert [n.text for n in notes] == ["second", "first"]
-        case Failure(error):
-            raise AssertionError(error)
+        case Failure(failure):
+            raise AssertionError(failure)
 
     match await repository.update_note(note_id=first.id, text="edited"):
         case Success(updated):
             assert updated.text == "edited"
             assert updated.updated_at > updated.created_at
-        case Failure(error):
-            raise AssertionError(error)
+        case Failure(failure):
+            raise AssertionError(failure)
 
     assert await repository.delete_note(note_id=first.id) == Success(None)
 
@@ -46,5 +47,7 @@ async def test_add_list_update_delete(clock: FixedClockService) -> None:
 async def test_unknown_id_becomes_failure(clock: FixedClockService) -> None:
     repository = _repository(clock)
 
-    assert isinstance(await repository.update_note(note_id="missing", text="x"), Failure)
-    assert isinstance(await repository.delete_note(note_id="missing"), Failure)
+    assert await repository.update_note(note_id="missing", text="x") == Failure(
+        NoteFailure.NOT_FOUND
+    )
+    assert await repository.delete_note(note_id="missing") == Failure(NoteFailure.NOT_FOUND)

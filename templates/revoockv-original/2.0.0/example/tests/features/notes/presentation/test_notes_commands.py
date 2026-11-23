@@ -29,4 +29,7 @@ def test_blank_text_fails(database_file: Path) -> None:
 
 
 def test_unknown_id_fails(database_file: Path) -> None:
-    assert runner.invoke(app, ["notes", "delete", "missing"]).exit_code == 1
+    result = runner.invoke(app, ["notes", "delete", "missing"])
+
+    assert result.exit_code == 1
+    assert "There is no such note" in result.output

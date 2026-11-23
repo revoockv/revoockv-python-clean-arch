@@ -1,10 +1,9 @@
-# Result (required)
+# Result and failures (required)
 
-Use `Result[T]` for expected success/failure instead of raising across layer boundaries.
+Expected failures are values, not exceptions: every repository method and use case returns `Result[T, F]` — `T` the
+value, `F` the failure type of the feature.
 
-Canonical location (copied into a new project by `init_project.py`, `[scaffold] core_files`):
-
-`src/my_app/core/domain/entities/result.py`
+`src/my_app/core/domain/entities/result.py` (copied into a new project by `init_project.py`)
 
 ```python
 """Result type for expected success/failure outcomes."""
@@ -20,66 +19,58 @@ class Success[T]:
 
 
 @dataclass(frozen=True, slots=True)
-class Failure:
-    """Failed outcome carrying a human-readable error message."""
+class Failure[F]:
+    """Failed outcome carrying why it failed: a member of the feature's failure type, never text."""
 
-    error: str
+    failure: F
 
 
-type Result[T] = Success[T] | Failure
+type Result[T, F] = Success[T] | Failure[F]
 """Return type of every repository method and use case that can fail in an expected way."""
 ```
 
-Import:
+## The failure type of a feature
 
-```python
-from my_app.core.domain.entities.result import Failure, Result, Success
-```
+`domain/entities/<feature>_failure.py`: what went wrong, never how to say it.
+
+- An `Enum` when a failure carries nothing: `example/src/example_app/features/notes/domain/entities/note_failure.py`.
+- Frozen dataclasses joined by `type <Feature>Failure = A | B` when one carries data the text needs
+  (`FileTooBig(megabytes)`).
+- Each failure has a `kind` property → `FailureKind` (core): `INVALID_INPUT`, `NOT_FOUND`, `CONFLICT`,
+  `UNAUTHORIZED`, `FORBIDDEN`, `UNEXPECTED` — `example/src/example_app/core/domain/entities/failure_kind.py`.
+- No text in domain or data. Technical details (`e`, tracebacks) go to the logger, never into the failure.
+
+## Where each part lives
+
+| Part | Where |
+|---|---|
+| `Failure(NoteFailure.EMPTY_TEXT)` for a broken business rule | the use case |
+| exception → `Failure(<member>)`: a known exception → its member, anything else → the `UNEXPECTED` one | the repository implementation, the only `try` |
+| the text of every failure: `<Feature>FailureText.of(failure)` with an exhaustive `match` | `presentation/text/<feature>_failure_text.py` — `example/src/example_app/features/notes/presentation/text/note_failure_text.py` |
+| `FailureKind` → HTTP status, once for every router | `example/src/example_app/core/presentation/api/failure_status.py` (FastAPI projects copy it) |
+
+A use case that passes on another feature's failure turns it into its own member first.
 
 ## Rules
 
-- Commands return `Result[None]` and succeed with `Success(None)`.
-- Queries return `Result[T]`; "not found" that is a normal outcome is `Success(None)` with
-  `Result[T | None]`, not a `Failure`.
-- Data sources may raise. Repository implementations catch and return `Failure(str(e))`
-  (and log). Nothing above the repository raises for expected failures.
-- Use cases never catch: they return `Failure(...)` for business-rule violations and otherwise
-  pass the repository `Result` through.
-- Unexpected bugs (programming errors) still raise — `Result` is for expected outcomes only.
+- Commands return `Result[None, F]` and succeed with `Success(None)`.
+- "Not found" that is a normal outcome is `Success(None)` with `Result[T | None, F]`; when the caller asked for one
+  record, it is a `NOT_FOUND` failure.
+- Use cases never catch. Unexpected bugs still raise — `Result` is for expected outcomes only.
+- The linter's `typed_failures` (on in this template) fails `Result[T]` without `F` and `Failure(<text>)`.
 
 ## Consuming a Result — always `match`
 
 ```python
-match await use_case(email=email, password=password):
-    case Success(user):
-        ...                                # user is AuthUser
-    case Failure(error):
-        ...                                # error is str
+match await use_case(text=text):
+    case Success(note):
+        ...                                     # note is Note
+    case Failure(failure):
+        raise _http_error(failure)              # FailureStatus.of(failure.kind), NoteFailureText.of(failure)
 ```
 
-`mypy --strict` checks that both cases are handled when the function must return a value.
+mypy (`--strict`) checks that both cases, and every member in `FailureText.of`, are handled. To narrow
+`Success[T | None]`, use a class pattern first: `case Success(Note() as note):`, then `case Success():`.
 
-### Narrowing `Success[T | None]`
-
-A value pattern (`case Success(None)`) does not narrow for mypy. Use a class pattern first:
-
-```python
-match await use_case():
-    case Success(AuthUser() as user):
-        return AuthUserResponse.from_entity(user)
-    case Success():
-        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
-    case Failure(error):
-        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=error)
-```
-
-### Quick checks without `match`
-
-```python
-result = await repository.sign_out()
-if isinstance(result, Failure):
-    return result                          # propagate (types line up for Result[None])
-```
-
-Do not add `.is_success` / `.value` helpers that return `T | None`; pattern matching keeps
-the type checker in charge.
+Quick propagation without `match`: `if isinstance(result, Failure): return result`. No `.is_success` / `.value`
+helpers: pattern matching keeps the type checker in charge.

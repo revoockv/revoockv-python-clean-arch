@@ -6,7 +6,7 @@ Part 4 of 4: the HTTP adapter of the worked feature (`auth_presentation.md` has 
 
 ## Presentation — FastAPI adapter (`presentation/api/`)
 
-Thin: parse input (Pydantic schema) → call the use case via its getter → `match` the `Result` → map to an HTTP response. Response schemas map from entities with `from_entity`. Status codes come from `http.HTTPStatus` (no magic numbers). Note `case Success(AuthUser() as user)` — a class pattern is needed for mypy to narrow `AuthUser | None`.
+Thin: parse input (Pydantic schema) → call the use case via its getter → `match` the `Result` → map to an HTTP response. Response schemas map from entities with `from_entity`. A failure answers with `FailureStatus.of(failure.kind)` (core) and its text from `AuthFailureText`. Note `case Success(AuthUser() as user)` — a class pattern is needed for mypy to narrow `AuthUser | None`.
 
 `src/my_app/features/auth/presentation/api/schemas/sign_in_request.py`
 
@@ -57,6 +57,8 @@ from http import HTTPStatus
 from fastapi import APIRouter, HTTPException
 
 from my_app.core.domain.entities.result import Failure, Success
+from my_app.core.presentation.api.failure_status import FailureStatus
+from my_app.features.auth.domain.entities.auth_failure import AuthFailure
 from my_app.features.auth.domain.entities.auth_user import AuthUser
 from my_app.features.auth.presentation.api.schemas.auth_user_response import AuthUserResponse
 from my_app.features.auth.presentation.api.schemas.sign_in_request import SignInRequest
@@ -65,30 +67,38 @@ from my_app.features.auth.presentation.di.auth_getters import (
     sign_in_use_case,
     sign_out_use_case,
 )
+from my_app.features.auth.presentation.text.auth_failure_text import AuthFailureText
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _http_error(failure: AuthFailure) -> HTTPException:
+    """Return the HTTP error that answers ``failure``: its status and its text."""
+    return HTTPException(
+        status_code=FailureStatus.of(failure.kind), detail=AuthFailureText.of(failure)
+    )
+
+
 @router.post("/sign-in")
 async def sign_in(body: SignInRequest) -> AuthUserResponse:
-    """Sign in and return the user; 401 with the error message on failure."""
+    """Sign in and return the user; 422 for a malformed input, 401 for wrong credentials."""
     use_case = sign_in_use_case()
     match await use_case(email=body.email, password=body.password):
         case Success(user):
             return AuthUserResponse.from_entity(user)
-        case Failure(error):
-            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail=error)
+        case Failure(failure):
+            raise _http_error(failure)
 
 
 @router.post("/sign-out", status_code=HTTPStatus.NO_CONTENT)
 async def sign_out() -> None:
-    """End the current session; 500 with the error message on failure."""
+    """End the current session."""
     use_case = sign_out_use_case()
     match await use_case():
         case Success():
             return
-        case Failure(error):
-            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=error)
+        case Failure(failure):
+            raise _http_error(failure)
 
 
 @router.get("/me")
@@ -100,6 +110,6 @@ async def me() -> AuthUserResponse:
             return AuthUserResponse.from_entity(user)
         case Success():
             raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
-        case Failure(error):
-            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=error)
+        case Failure(failure):
+            raise _http_error(failure)
 ```

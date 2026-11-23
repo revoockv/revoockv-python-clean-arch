@@ -5,7 +5,7 @@ from dataclasses import replace
 
 from example_app.core.data.data_sources.database_data_source import (
     DatabaseDataSource,
-    DatabaseDataSourceError,
+    RowNotFoundError,
 )
 from example_app.core.data.services.clock_service import ClockService
 from example_app.features.notes.data.data_sources.notes_data_source import NotesDataSource
@@ -35,10 +35,14 @@ class DatabaseNotesDataSource(NotesDataSource):
         return model
 
     async def update_note(self, *, note_id: str, text: str) -> NoteModel:
-        """Update the text and ``updated_at`` of ``note_id``."""
+        """Update the text and ``updated_at`` of ``note_id``.
+
+        Raises:
+            RowNotFoundError: If there is no note ``note_id``.
+        """
         current = next((m for m in await self.list_notes() if m.id == note_id), None)
         if current is None:
-            raise DatabaseDataSourceError(self._UNKNOWN_ID.format(note_id=note_id))
+            raise RowNotFoundError(self._UNKNOWN_ID.format(note_id=note_id))
         model = replace(current, text=text, updated_at=self._clock.now().isoformat())
         await self._database.update(table=self._TABLE, row=model.to_row())
         return model

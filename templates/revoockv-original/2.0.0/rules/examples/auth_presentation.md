@@ -95,10 +95,46 @@ def get_current_user_use_case() -> GetCurrentUserUseCase:
 
 ---
 
+## Presentation — failure text (`presentation/text/`)
+
+The text of every failure lives in presentation, in one class per failure type. The exhaustive `match` makes mypy
+fail when a new member has no text. Every adapter (CLI, HTTP) uses it.
+
+`src/my_app/features/auth/presentation/text/auth_failure_text.py`
+
+```python
+"""User-facing text of the auth failures."""
+
+from my_app.features.auth.domain.entities.auth_failure import AuthFailure
+
+
+class AuthFailureText:
+    """The text of every ``AuthFailure``; a new member without a text fails mypy."""
+
+    _INVALID_EMAIL = "Email is not valid"
+    _EMPTY_PASSWORD = "Password must not be empty"
+    _WRONG_CREDENTIALS = "Wrong email or password"
+    _BACKEND = "Signing in is not available now"
+
+    @classmethod
+    def of(cls, failure: AuthFailure) -> str:
+        """Return the text that tells the user about ``failure``."""
+        match failure:
+            case AuthFailure.INVALID_EMAIL:
+                return cls._INVALID_EMAIL
+            case AuthFailure.EMPTY_PASSWORD:
+                return cls._EMPTY_PASSWORD
+            case AuthFailure.WRONG_CREDENTIALS:
+                return cls._WRONG_CREDENTIALS
+            case AuthFailure.BACKEND:
+                return cls._BACKEND
+```
+
+---
 
 ## Presentation — Typer adapter (`presentation/cli/`)
 
-Same shape as the router: getter → use case → `match` → `typer.echo` / `typer.Exit(code=1)`. Async use cases run with `asyncio.run`. User-facing text lives in a constants class.
+Same shape as the router: getter → use case → `match` → `typer.echo` / `typer.Exit(code=1)` with the failure's text. Async use cases run with `asyncio.run`. User-facing text lives in a constants class.
 
 `src/my_app/features/auth/presentation/cli/auth_commands.py`
 
@@ -112,6 +148,7 @@ import typer
 
 from my_app.core.domain.entities.result import Failure, Success
 from my_app.features.auth.presentation.di.auth_getters import sign_in_use_case
+from my_app.features.auth.presentation.text.auth_failure_text import AuthFailureText
 
 commands = typer.Typer(help="Auth commands.", no_args_is_help=True)
 
@@ -132,8 +169,8 @@ def sign_in(
     match asyncio.run(use_case(email=email, password=password)):
         case Success(user):
             typer.echo(AuthCommandsText.SIGNED_IN.format(email=user.email))
-        case Failure(error):
-            typer.echo(error, err=True)
+        case Failure(failure):
+            typer.echo(AuthFailureText.of(failure), err=True)
             raise typer.Exit(code=1)
 ```
 

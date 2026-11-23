@@ -24,7 +24,8 @@ The required and optional folders are the template's `[structure]` (`template.to
         repositories/
       domain/
         entities/
-          result.py            — Success / Failure / Result[T]  (NEVER directly in domain/)
+          result.py            — Success / Failure / Result[T, F]  (NEVER directly in domain/)
+          failure_kind.py      — FailureKind: what sort of failure, for the adapters
         repositories/
         use_cases/
       presentation/
@@ -48,7 +49,7 @@ src/<package>/features/<feature>/
     services/                  — optional: <name>_service.py: <Name>Service — technology adapters/converters
                                  (wrap one library or CLI tool, e.g. DoclingService, FfmpegService). May raise.
   domain/                      — business logic, stdlib only
-    entities/                  — frozen dataclasses, enums, domain errors
+    entities/                  — frozen dataclasses, enums, <feature>_failure.py (the failure type)
     repositories/              — <name>_repository.py: <Name>Repository(ABC)
     use_cases/                 — <action>_use_case.py: <Action>UseCase with async __call__
   presentation/                — delivery mechanisms + DI wiring
@@ -61,6 +62,7 @@ src/<package>/features/<feature>/
       schemas/                 — Pydantic request/response models
     cli/                       — optional Typer adapter
       <feature>_commands.py    — `commands = typer.Typer(...)`
+    text/                      — <feature>_failure_text.py: the text of every failure, for every adapter
     <other adapter>/           — any other delivery mechanism (worker/, bot/, grpc/...)
 ```
 

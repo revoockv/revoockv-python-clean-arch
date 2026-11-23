@@ -7,12 +7,14 @@ import typer
 
 from example_app.core.domain.entities.result import Failure, Success
 from example_app.features.notes.domain.entities.note import Note
+from example_app.features.notes.domain.entities.note_failure import NoteFailure
 from example_app.features.notes.presentation.di.notes_getters import (
     add_note_use_case,
     delete_note_use_case,
     list_notes_use_case,
     update_note_use_case,
 )
+from example_app.features.notes.presentation.text.note_failure_text import NoteFailureText
 
 commands = typer.Typer(help="Notes commands.", no_args_is_help=True)
 
@@ -32,9 +34,9 @@ def _line(note: Note) -> str:
     return NotesCommandsText.NOTE_LINE.format(id=note.id, text=note.text)
 
 
-def _fail(error: str) -> typer.Exit:
-    """Print ``error`` to stderr and return the exit to raise."""
-    typer.echo(error, err=True)
+def _fail(failure: NoteFailure) -> typer.Exit:
+    """Print the text of ``failure`` to stderr and return the exit to raise."""
+    typer.echo(NoteFailureText.of(failure), err=True)
     return typer.Exit(code=1)
 
 
@@ -47,8 +49,8 @@ def list_notes() -> None:
                 typer.echo(_line(note))
         case Success():
             typer.echo(NotesCommandsText.NO_NOTES)
-        case Failure(error):
-            raise _fail(error)
+        case Failure(failure):
+            raise _fail(failure)
 
 
 @commands.command("add")
@@ -57,8 +59,8 @@ def add(text: Annotated[str, typer.Argument(help="Note text.")]) -> None:
     match asyncio.run(add_note_use_case()(text=text)):
         case Success(note):
             typer.echo(NotesCommandsText.ADDED.format(id=note.id))
-        case Failure(error):
-            raise _fail(error)
+        case Failure(failure):
+            raise _fail(failure)
 
 
 @commands.command("edit")
@@ -70,8 +72,8 @@ def edit(
     match asyncio.run(update_note_use_case()(note_id=note_id, text=text)):
         case Success(note):
             typer.echo(NotesCommandsText.UPDATED.format(id=note.id))
-        case Failure(error):
-            raise _fail(error)
+        case Failure(failure):
+            raise _fail(failure)
 
 
 @commands.command("delete")
@@ -80,5 +82,5 @@ def delete(note_id: Annotated[str, typer.Argument(help="Id of the note.")]) -> N
     match asyncio.run(delete_note_use_case()(note_id=note_id)):
         case Success():
             typer.echo(NotesCommandsText.DELETED.format(id=note_id))
-        case Failure(error):
-            raise _fail(error)
+        case Failure(failure):
+            raise _fail(failure)

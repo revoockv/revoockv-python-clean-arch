@@ -1,9 +1,9 @@
-# revoockv-original 1.0.0 — the architecture the skill had up to 0.3.0, plus the data-design rule.
+# revoockv-original 2.0.0 — 1.0.0 with typed failures: Result[T, F], a failure type per feature, its text in presentation.
 # The agent reads this file first, then only the rule files the task needs.
 
 name = "revoockv-original"
 version = "2.0.0"
-description = "Python clean architecture: ABC interfaces, mandatory use cases, Result[T], a typed DI container with getters"
+description = "Python clean architecture: ABC interfaces, mandatory use cases, Result[T, F] with typed failures, a typed DI container with getters"
 author = "revoockv"
 
 [choices]
@@ -13,8 +13,8 @@ layers = ["data", "domain", "presentation"]
 core = "src/<package>/core mirrors the feature layers: Result, Settings, shared data sources (the app database) and services (the clock), the Container, core DI"
 interfaces = "ABC with abstract methods: one family of classes shares one base type (repositories, data sources)"
 use_cases = "required for every user ↔ app interaction: one class per file, async __call__ only, no try/except"
-use_case_returns = ["Result[T] for every use case", "Success(None) for commands"]
-errors = "own Result[T] = Success[T] | Failure(error: str), consumed with match; repositories turn exceptions into Failure and log"
+use_case_returns = ["Result[T, <Feature>Failure] for every use case", "Success(None) for commands"]
+errors = "own Result[T, F] = Success[T] | Failure[F]; F is the feature's failure Enum with a FailureKind, its text in presentation/text; repositories turn exceptions into Failure(<member>) and log the details"
 data_design = "the repository orchestrates: one data source per external system, one service per library/tool, parsing in the model; no file over max_file_lines"
 models = "DTOs in data/models (frozen dataclasses or Pydantic) with to_entity / from_entity and wire (de)serialization"
 di = "own typed Container keyed by interfaces; register_<feature>(container) per feature, optional init_<feature>; register_and_init() in di.py; getters are the presentation's only door"
@@ -69,6 +69,7 @@ data = ["services"]
 # Files `init_project` copies from the example (relative to src/<package>/), with the package renamed.
 core_files = [
   "core/domain/entities/result.py",
+  "core/domain/entities/failure_kind.py",
   "core/presentation/di/container.py",
 ]
 # Stub files: scaffold/project/ (init_project), scaffold/feature/ and scaffold/subfeature/ (under the
@@ -108,6 +109,8 @@ doc_feature = "src/my_app/features/auth"
 [lint]
 # Rules this template turns off (none: all 23 apply).
 off = []
+# Opt-in rules this template turns on.
+on = ["typed_failures"]
 # Rules reported as warnings: shown, but `--strict` does not fail on them.
 warn = []
 

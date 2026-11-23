@@ -11,11 +11,11 @@ class Success[T]:
 
 
 @dataclass(frozen=True, slots=True)
-class Failure:
-    """Failed outcome carrying a human-readable error message."""
+class Failure[F]:
+    """Failed outcome carrying why it failed: a member of the feature's failure type, never text."""
 
-    error: str
+    failure: F
 
 
-type Result[T] = Success[T] | Failure
+type Result[T, F] = Success[T] | Failure[F]
 """Return type of every repository method and use case that can fail in an expected way."""

@@ -1,6 +1,6 @@
 ---
 name: revoockv-python-clean-arch
-description: Build Python projects by a chosen clean-architecture template (default revoockv-original - data / domain / presentation per feature, mandatory use cases, Result[T], ABC interfaces, own typed DI container with getters, uv + ruff + mypy --strict + pytest) and manage those templates. Use when the user asks to create a new Python project or feature, add use cases / repositories / data sources / services / DTO models, wire DI, add a FastAPI or Typer (or other) adapter, refactor an existing Python codebase into clean architecture, split a big module, check a project against the rules (linter), or to create, change, version, choose or validate an architecture template (folders, DI, use cases, errors, code style, tests, git rules).
+description: Build Python projects by a chosen clean-architecture template (default revoockv-original - data / domain / presentation per feature, mandatory use cases, Result[T, F] with typed failures, ABC interfaces, own typed DI container with getters, uv + ruff + mypy --strict + pytest) and manage those templates. Use when the user asks to create a new Python project or feature, add use cases / repositories / data sources / services / DTO models, wire DI, add a FastAPI or Typer (or other) adapter, refactor an existing Python codebase into clean architecture, split a big module, check a project against the rules (linter), or to create, change, version, choose or validate an architecture template (folders, DI, use cases, errors, code style, tests, git rules).
 metadata:
   version: 0.4.0
   author: revoockv
@@ -16,7 +16,7 @@ The rules live in **templates**: `templates/<name>/<version>/`. A template says 
 python3 <skill_base>/scripts/templates.py show --project <project_path>
 ```
 
-It prints the template of the project (`<project>/.clean_arch.toml` next to `pyproject.toml`, else the default of `templates/index.toml` — now `revoockv-original@1.0.0`), its choices and its topics with their sizes. **Follow that template only.** When its rules and your memory disagree, the template's `example/` wins.
+It prints the template of the project (`<project>/.clean_arch.toml` next to `pyproject.toml`, else the default of `templates/index.toml` — now `revoockv-original@2.0.0`), its choices and its topics with their sizes. **Follow that template only.** When its rules and your memory disagree, the template's `example/` wins.
 
 ## 2. Read only the topics of the task
 
@@ -44,7 +44,7 @@ Do not read every topic up front: each costs context. A rule that names `example
 |---|---|
 | `scripts/init_project.py --name <n> [--adapter none\|fastapi\|typer]` | A new project from the template's scaffold; writes `.clean_arch.toml` |
 | `scripts/init_feature.py --feature <f> [--adapter …] [--subfeature <s>]` | Feature folders, DI stubs, adapter stubs, test packages; wires `di.py` / `main.py` |
-| `scripts/py_clean_arch_linter.py [path] [--strict]` | Architecture linter (23 rules) — run it after every change; it follows the template. Details: `docs/linter.md` |
+| `scripts/py_clean_arch_linter.py [path] [--strict]` | Architecture linter (23 rules + opt-in `typed_failures`) — run it after every change; it follows the template. Details: `docs/linter.md` |
 | `scripts/selfcheck.py [--template REF]` | Every template: rules vs example, example quality gate, scaffold for every adapter. Run it after changing the skill or a template |
 
 The quality gate of a project — a task is done only when all pass:

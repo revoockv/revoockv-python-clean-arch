@@ -9,6 +9,7 @@ from example_app.core.data.data_sources.database_data_source import (
     DatabaseDataSource,
     DatabaseDataSourceError,
     Row,
+    RowNotFoundError,
 )
 
 
@@ -56,7 +57,7 @@ class JsonFileDatabaseDataSource(DatabaseDataSource):
     ) -> dict[str, Row]:
         rows = tables.get(table, {})
         if row_id not in rows:
-            raise DatabaseDataSourceError(self._UNKNOWN_ID.format(table=table, row_id=row_id))
+            raise RowNotFoundError(self._UNKNOWN_ID.format(table=table, row_id=row_id))
         return rows
 
     def _read(self) -> dict[str, dict[str, Row]]:

@@ -10,9 +10,9 @@ and adapt the names only. Run the quality gate after every change.
   no I/O, no imports from data or presentation.
 - **Data** — data sources (talk to HTTP/DB/SDK/files; may raise), optional services (`data/services/`: one library
   or tool each), models/DTOs with `to_entity()` / `from_entity()`, repository implementations that orchestrate them,
-  catch exceptions, log, and return `Result[...]` (`rules/data/data_design.md`).
+  catch exceptions, log, and return `Result[T, <Feature>Failure]` (`rules/data/data_design.md`).
 - **Presentation** — `di/` (registration + getters) and adapter folders (`api/`, `cli/`, …). Adapters call use cases
-  through getters and map `Result` to output. No business logic.
+  through getters and map `Result` to output; failure texts live in `presentation/text/`. No business logic.
 
 Dependency direction: presentation → domain ← data. Wiring happens only in `presentation/di/` and `di.py`.
 
@@ -35,16 +35,18 @@ python3 <skill_base>/scripts/py_clean_arch_linter.py            # --strict in CI
 ## B) Create a new feature
 
 1. `init_feature.py --feature <name> [--adapter fastapi|typer]` from the project root.
-2. Domain first: entities in `domain/entities/`; the repository interface in
-   `domain/repositories/<name>_repository.py` (`ABC`, methods return `Result`); use cases in
+2. Domain first: entities and the failure type (`<feature>_failure.py`, `rules/errors/result.md`) in
+   `domain/entities/`; the repository interface in
+   `domain/repositories/<name>_repository.py` (`ABC`, methods return `Result[T, <Feature>Failure]`); use cases in
    `domain/use_cases/<action>_use_case.py` (`rules/use_cases/use_case_naming.md`).
 3. Data (`rules/data/`): data source ABC + implementation(s), services for libraries/tools, models with mapping,
    `data/repositories/<name>_repository_impl.py` that inherits the domain interface, receives `logger`, wraps every
-   data-source call in try/except → `Failure` and logs every public method.
+   data-source call in try/except → `Failure(<member>)` and logs every public method.
 4. Presentation DI (`rules/di/di_patterns.md`): `register_<feature>(container)` — data sources → repository (keyed by
    the domain interface) → use cases; optional `async init_<feature>(container)` called from `di.py`;
    `<feature>_getters.py` with one getter per use case.
-5. Adapter (`rules/presentation/presentation_patterns.md`): getter → use case → `match` Result → output.
+5. Adapter (`rules/presentation/presentation_patterns.md`): getter → use case → `match` Result → output, with
+   `presentation/text/<feature>_failure_text.py` for the failures.
 6. Tests mirroring the layers (`rules/testing/testing.md`), then the quality gate.
 
 ## C) Refactor an existing project into this template

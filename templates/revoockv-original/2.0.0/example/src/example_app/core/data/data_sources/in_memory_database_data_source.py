@@ -6,6 +6,7 @@ from example_app.core.data.data_sources.database_data_source import (
     DatabaseDataSource,
     DatabaseDataSourceError,
     Row,
+    RowNotFoundError,
 )
 
 
@@ -48,5 +49,5 @@ class InMemoryDatabaseDataSource(DatabaseDataSource):
     def _existing(self, *, table: str, row_id: str) -> dict[str, Row]:
         rows = self._tables.get(table, {})
         if row_id not in rows:
-            raise DatabaseDataSourceError(self._UNKNOWN_ID.format(table=table, row_id=row_id))
+            raise RowNotFoundError(self._UNKNOWN_ID.format(table=table, row_id=row_id))
         return rows

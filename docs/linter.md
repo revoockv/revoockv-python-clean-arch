@@ -5,7 +5,8 @@ packages needed). It complements ruff and mypy: those check generic Python quali
 the template's conventions.
 
 It follows the project's template (`.clean_arch.toml` next to `pyproject.toml`, else the default; `--template REF`
-for one run): `folder_structure` checks its `[structure]`, the rules of `[lint] off` do not run, those of
+for one run): `folder_structure` checks its `[structure]`, the rules of `[lint] off` do not run, the opt-in rules run
+only when `[lint] on` names them, those of
 `[lint] warn` are shown as warnings that `--strict` does not fail on, and `[lint.params]` sets `allowed_numbers`,
 `max_file_lines` and `constant_layers`.
 
@@ -26,6 +27,10 @@ python3 <skill_base>/scripts/py_clean_arch_linter.py --list-rules
 `import_violation`, `relative_import`, `domain_repository`, `repository_impl`, `repository_result`,
 `repository_logging`, `model_mapping`, `entity_frozen`, `logger_injection`, `no_print`, `container_access`,
 `docstring_public`, `type_hints`, `magic_numbers`, `magic_strings`, `module_constants`, `di_naming`, `file_size`.
+
+**Opt-in** (`[lint] on`; templates made before them keep passing): `typed_failures` — `Result[T]` without its
+failure type, and `Failure(<text>)` (a string, an f-string, `str(e)`, `.format()`, a string constant). On in
+`revoockv-original@2.0.0`.
 
 `file_size` fails a file with more than `max_file_lines` non-blank lines: such a file does several jobs. Split it by
 the template's data design (`rules/data/data_design.md` of `revoockv-original`) instead of raising the limit.

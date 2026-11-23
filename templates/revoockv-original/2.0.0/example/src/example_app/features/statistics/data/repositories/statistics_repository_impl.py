@@ -8,6 +8,7 @@ from example_app.features.statistics.data.data_sources.statistics_data_source im
     StatisticsDataSource,
 )
 from example_app.features.statistics.domain.entities.notes_statistics import NotesStatistics
+from example_app.features.statistics.domain.entities.statistics_failure import StatisticsFailure
 from example_app.features.statistics.domain.repositories.statistics_repository import (
     StatisticsRepository,
 )
@@ -23,13 +24,13 @@ class StatisticsRepositoryImpl(StatisticsRepository):
         self._clock = clock
         self._logger = logger
 
-    async def get_notes_statistics(self) -> Result[NotesStatistics]:
+    async def get_notes_statistics(self) -> Result[NotesStatistics, StatisticsFailure]:
         """Read the facts and count them as of the clock's now."""
         try:
             models = await self._data_source.note_facts()
         except Exception as e:
             self._logger.error("GetNotesStatistics: failure — %s", e)
-            return Failure(str(e))
+            return Failure(StatisticsFailure.STORAGE)
         statistics = NotesStatistics.of(
             (model.to_entity() for model in models), now=self._clock.now()
         )

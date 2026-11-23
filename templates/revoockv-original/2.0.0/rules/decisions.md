@@ -31,11 +31,13 @@ The short answer first; the rule file in brackets has the details.
 
 | You need to… | Do |
 |---|---|
-| Return success/failure | `Success(value)` / `Failure(message)`; commands `Success(None)` (`errors/result.md`) |
-| Consume a `Result` | `match`: `case Success(x)` / `case Failure(error)`; never `.is_success` helpers |
+| Return success/failure | `Success(value)` / `Failure(<Feature>Failure.MEMBER)`; commands `Success(None)` (`errors/result.md`) |
+| Say what can go wrong | `domain/entities/<feature>_failure.py`: an `Enum` (or dataclasses when it carries data), each with a `kind` |
+| Show a failure to the user | `<Feature>FailureText.of(failure)` in `presentation/text/`; HTTP status `FailureStatus.of(failure.kind)` |
+| Consume a `Result` | `match`: `case Success(x)` / `case Failure(failure)`; never `.is_success` helpers |
 | Narrow `Success[T \| None]` | `case Success(Entity() as x):` then `case Success():` |
 | Place try/except | only in the repository implementation; data sources raise, use cases never catch |
-| "Not found" as a normal outcome | `Success(None)` with `Result[T \| None]` |
+| "Not found" as a normal outcome | `Success(None)` with `Result[T \| None, F]`; one asked-for record missing → `NOT_FOUND` |
 
 ## DI
 

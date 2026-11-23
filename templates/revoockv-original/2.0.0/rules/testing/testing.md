@@ -18,7 +18,7 @@ Tests are excluded from docstring/annotation ruff rules and from the architectur
 | Layer | Subject | Replace with a fake |
 |---|---|---|
 | domain/use_cases | business rules, pass-through of `Result` | the domain repository ABC (hand-written fake) |
-| data/repositories | exception → `Failure`, model → entity mapping, logging | the data source ABC (fake or in-memory impl) |
+| data/repositories | exception → `Failure(<member>)`, model → entity mapping, logging | the data source ABC (fake or in-memory impl) |
 | data/data_sources | real I/O against a local server/DB, or a stubbed transport (`httpx.MockTransport`) | the network |
 | data/models | `from_dict` / `to_dict` / `to_entity` / `from_entity` round-trips | nothing |
 | presentation | status codes / exit codes / output for Success and Failure | container registrations |
@@ -30,18 +30,18 @@ and mypy checks it.
 
 ```python
 class FakeAuthRepository(AuthRepository):
-    def __init__(self, sign_in_result: Result[AuthUser]) -> None:
+    def __init__(self, sign_in_result: Result[AuthUser, AuthFailure]) -> None:
         self.sign_in_result = sign_in_result
         self.sign_in_calls: list[tuple[str, str]] = []
 
-    async def sign_in(self, *, email: str, password: str) -> Result[AuthUser]:
+    async def sign_in(self, *, email: str, password: str) -> Result[AuthUser, AuthFailure]:
         self.sign_in_calls.append((email, password))
         return self.sign_in_result
 
-    async def sign_out(self) -> Result[None]:
+    async def sign_out(self) -> Result[None, AuthFailure]:
         return Success(None)
 
-    async def get_current_user(self) -> Result[AuthUser | None]:
+    async def get_current_user(self) -> Result[AuthUser | None, AuthFailure]:
         return Success(None)
 
 
@@ -50,7 +50,7 @@ async def test_rejects_invalid_email_without_calling_repository() -> None:
 
     result = await SignInUseCase(repository)(email="not-an-email", password="pw")
 
-    assert isinstance(result, Failure)
+    assert result == Failure(AuthFailure.INVALID_EMAIL)
     assert repository.sign_in_calls == []
 ```
 
@@ -62,7 +62,7 @@ Getters resolve at call time, so register fakes in the container and drive the a
 def test_sign_in_failure_returns_401() -> None:
     container.reset()
     register_core(container)
-    container.register_singleton(SignInUseCase, SignInUseCase(FakeAuthRepository(Failure("nope"))))
+    container.register_singleton(SignInUseCase, SignInUseCase(FakeAuthRepository(Failure(AuthFailure.WRONG_CREDENTIALS))))
     app = FastAPI()
     app.include_router(router)               # no lifespan → register_and_init() is not called
 

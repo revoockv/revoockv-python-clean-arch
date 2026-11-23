@@ -6,7 +6,7 @@ It enforces:
 
 - Domain is pure Python (stdlib + domain modules only).
 - Use cases: one class, async `__call__`, no try/except, `Result` passed through.
-- Business validation returns `Failure(...)`; messages are class constants.
+- Every failure is a member of `AuthFailure`; no text in domain or data (its text: `presentation/text/`).
 
 ## Layout
 
@@ -19,6 +19,7 @@ src/my_app/features/auth/
     repositories/auth_repository_impl.py        AuthRepositoryImpl
   domain/
     entities/auth_user.py                       AuthUser
+    entities/auth_failure.py                    AuthFailure (Enum)
     repositories/auth_repository.py             AuthRepository (ABC)
     use_cases/sign_in_use_case.py               SignInUseCase
     use_cases/sign_out_use_case.py              SignOutUseCase
@@ -30,9 +31,10 @@ src/my_app/features/auth/
     api/schemas/sign_in_request.py              SignInRequest
     api/schemas/auth_user_response.py           AuthUserResponse
     cli/auth_commands.py                        Typer commands
+    text/auth_failure_text.py                   AuthFailureText
 ```
 
-Core `Result`, `Container` and `register_core`: `example/src/example_app/core/`.
+Core `Result`, `FailureKind`, `FailureStatus`, `Container` and `register_core`: `example/src/example_app/core/`.
 
 ---
 
@@ -58,9 +60,46 @@ class AuthUser:
 
 ---
 
+## Domain — failure type
+
+An `Enum` of everything that can go wrong in the feature, each member with its `FailureKind`. It says *what* went
+wrong, never how to say it.
+
+`src/my_app/features/auth/domain/entities/auth_failure.py`
+
+```python
+"""Failures of the auth feature."""
+
+from enum import Enum, auto
+
+from my_app.core.domain.entities.failure_kind import FailureKind
+
+
+class AuthFailure(Enum):
+    """Why an auth operation failed; the text for the user lives in presentation."""
+
+    INVALID_EMAIL = auto()
+    EMPTY_PASSWORD = auto()
+    WRONG_CREDENTIALS = auto()
+    BACKEND = auto()
+
+    @property
+    def kind(self) -> FailureKind:
+        """The kind of this failure, for the adapters."""
+        match self:
+            case AuthFailure.INVALID_EMAIL | AuthFailure.EMPTY_PASSWORD:
+                return FailureKind.INVALID_INPUT
+            case AuthFailure.WRONG_CREDENTIALS:
+                return FailureKind.UNAUTHORIZED
+            case AuthFailure.BACKEND:
+                return FailureKind.UNEXPECTED
+```
+
+---
+
 ## Domain — repository interface
 
-An `ABC` with abstract methods only. Every method that can fail returns `Result[...]`. Keyword-only parameters (`*`) keep call sites explicit.
+An `ABC` with abstract methods only. Every method that can fail returns `Result[T, AuthFailure]`. Keyword-only parameters (`*`) keep call sites explicit.
 
 `src/my_app/features/auth/domain/repositories/auth_repository.py`
 
@@ -70,6 +109,7 @@ An `ABC` with abstract methods only. Every method that can fail returns `Result[
 from abc import ABC, abstractmethod
 
 from my_app.core.domain.entities.result import Result
+from my_app.features.auth.domain.entities.auth_failure import AuthFailure
 from my_app.features.auth.domain.entities.auth_user import AuthUser
 
 
@@ -77,15 +117,15 @@ class AuthRepository(ABC):
     """Signs users in and out and tracks the current session."""
 
     @abstractmethod
-    async def sign_in(self, *, email: str, password: str) -> Result[AuthUser]:
+    async def sign_in(self, *, email: str, password: str) -> Result[AuthUser, AuthFailure]:
         """Authenticate with email and password and start a session."""
 
     @abstractmethod
-    async def sign_out(self) -> Result[None]:
+    async def sign_out(self) -> Result[None, AuthFailure]:
         """End the current session."""
 
     @abstractmethod
-    async def get_current_user(self) -> Result[AuthUser | None]:
+    async def get_current_user(self) -> Result[AuthUser | None, AuthFailure]:
         """Return the signed-in user, or ``None`` when nobody is signed in."""
 ```
 
@@ -93,7 +133,7 @@ class AuthRepository(ABC):
 
 ## Domain — use cases
 
-One class per file, a single async `__call__`, no try/except. Business validation returns `Failure(...)` directly (messages are class constants); otherwise the repository `Result` is passed through unchanged.
+One class per file, a single async `__call__`, no try/except. Business validation returns `Failure(AuthFailure.…)` directly; otherwise the repository `Result` is passed through unchanged.
 
 `src/my_app/features/auth/domain/use_cases/sign_in_use_case.py`
 
@@ -101,6 +141,7 @@ One class per file, a single async `__call__`, no try/except. Business validatio
 """Sign in use case."""
 
 from my_app.core.domain.entities.result import Failure, Result
+from my_app.features.auth.domain.entities.auth_failure import AuthFailure
 from my_app.features.auth.domain.entities.auth_user import AuthUser
 from my_app.features.auth.domain.repositories.auth_repository import AuthRepository
 
@@ -109,22 +150,20 @@ class SignInUseCase:
     """Validates credentials and signs the user in."""
 
     _EMAIL_SEPARATOR = "@"
-    _INVALID_EMAIL_ERROR = "Email is not valid"
-    _EMPTY_PASSWORD_ERROR = "Password must not be empty"
 
     def __init__(self, repository: AuthRepository) -> None:
         self._repository = repository
 
-    async def __call__(self, *, email: str, password: str) -> Result[AuthUser]:
+    async def __call__(self, *, email: str, password: str) -> Result[AuthUser, AuthFailure]:
         """Sign in with email and password.
 
         Business validation returns ``Failure`` directly; everything else is the repository's
         ``Result`` passed through unchanged (no try/except here).
         """
         if self._EMAIL_SEPARATOR not in email:
-            return Failure(self._INVALID_EMAIL_ERROR)
+            return Failure(AuthFailure.INVALID_EMAIL)
         if not password:
-            return Failure(self._EMPTY_PASSWORD_ERROR)
+            return Failure(AuthFailure.EMPTY_PASSWORD)
         return await self._repository.sign_in(email=email, password=password)
 ```
 
@@ -134,6 +173,7 @@ class SignInUseCase:
 """Sign out use case."""
 
 from my_app.core.domain.entities.result import Result
+from my_app.features.auth.domain.entities.auth_failure import AuthFailure
 from my_app.features.auth.domain.repositories.auth_repository import AuthRepository
 
 
@@ -143,7 +183,7 @@ class SignOutUseCase:
     def __init__(self, repository: AuthRepository) -> None:
         self._repository = repository
 
-    async def __call__(self) -> Result[None]:
+    async def __call__(self) -> Result[None, AuthFailure]:
         """Sign the current user out."""
         return await self._repository.sign_out()
 ```
@@ -154,6 +194,7 @@ class SignOutUseCase:
 """Get current user use case."""
 
 from my_app.core.domain.entities.result import Result
+from my_app.features.auth.domain.entities.auth_failure import AuthFailure
 from my_app.features.auth.domain.entities.auth_user import AuthUser
 from my_app.features.auth.domain.repositories.auth_repository import AuthRepository
 
@@ -164,7 +205,7 @@ class GetCurrentUserUseCase:
     def __init__(self, repository: AuthRepository) -> None:
         self._repository = repository
 
-    async def __call__(self) -> Result[AuthUser | None]:
+    async def __call__(self) -> Result[AuthUser | None, AuthFailure]:
         """Return the signed-in user, or ``None`` when nobody is signed in."""
         return await self._repository.get_current_user()
 ```
@@ -173,48 +214,5 @@ class GetCurrentUserUseCase:
 
 ## Tests — use case with a hand-written fake repository
 
-Prefer fakes implementing the domain ABC over mocks — the ABC guarantees the fake stays in sync.
-
-`tests/features/auth/domain/use_cases/test_sign_in_use_case.py`
-
-```python
-from my_app.core.domain.entities.result import Failure, Result, Success
-from my_app.features.auth.domain.entities.auth_user import AuthUser
-from my_app.features.auth.domain.repositories.auth_repository import AuthRepository
-from my_app.features.auth.domain.use_cases.sign_in_use_case import SignInUseCase
-
-
-class FakeAuthRepository(AuthRepository):
-    def __init__(self, sign_in_result: Result[AuthUser]) -> None:
-        self.sign_in_result = sign_in_result
-        self.sign_in_calls: list[tuple[str, str]] = []
-
-    async def sign_in(self, *, email: str, password: str) -> Result[AuthUser]:
-        self.sign_in_calls.append((email, password))
-        return self.sign_in_result
-
-    async def sign_out(self) -> Result[None]:
-        return Success(None)
-
-    async def get_current_user(self) -> Result[AuthUser | None]:
-        return Success(None)
-
-
-async def test_returns_repository_result_for_valid_credentials() -> None:
-    user = AuthUser(id="1", email="a@b.c")
-    repository = FakeAuthRepository(Success(user))
-
-    result = await SignInUseCase(repository)(email="a@b.c", password="pw")
-
-    assert result == Success(user)
-    assert repository.sign_in_calls == [("a@b.c", "pw")]
-
-
-async def test_rejects_invalid_email_without_calling_repository() -> None:
-    repository = FakeAuthRepository(Success(AuthUser(id="1", email="a@b.c")))
-
-    result = await SignInUseCase(repository)(email="not-an-email", password="pw")
-
-    assert isinstance(result, Failure)
-    assert repository.sign_in_calls == []
-```
+A fake that inherits `AuthRepository` and records its calls: `rules/testing/testing.md` (`FakeAuthRepository`), the
+same shape as `example/tests/features/notes/fakes.py`.

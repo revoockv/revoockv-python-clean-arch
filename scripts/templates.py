@@ -93,6 +93,11 @@ class Template:
     def lint_off(self) -> tuple[str, ...]:
         return tuple(self.data.get("lint", {}).get("off", ()))
 
+    @property
+    def lint_on(self) -> tuple[str, ...]:
+        """Opt-in rules (the linter's OPT_IN_RULES) this template turns on."""
+        return tuple(self.data.get("lint", {}).get("on", ()))
+
     def rule_files(self, topics: list[str] | None = None) -> list[Path]:
         """The rule files of [topics] (all when None), in the order of template.toml."""
         rules: dict[str, list[str]] = self.data["rules"]
@@ -309,13 +314,16 @@ def problems(template: Template) -> tuple[list[str], list[str]]:
         if adapter != "none" and not (scaffold / "adapters" / adapter).is_dir():
             errors.append(f"scaffold: adapter {adapter} has no scaffold/adapters/{adapter}/")
     sys.path.insert(0, str(SKILL_ROOT / "scripts"))
-    from py_clean_arch_linter import ALL_RULES  # noqa: PLC0415
+    from py_clean_arch_linter import ALL_RULES, OPT_IN_RULES  # noqa: PLC0415
 
     lint = data.get("lint", {})
-    for key in ("off", "warn"):
+    for key in ("off", "warn", "on"):
         unknown = sorted(set(lint.get(key, ())) - ALL_RULES)
         if unknown:
             errors.append(f"lint.{key}: unknown rule(s) {', '.join(unknown)}")
+    not_opt_in = sorted(set(lint.get("on", ())) - OPT_IN_RULES - (set(lint.get("on", ())) - ALL_RULES))
+    if not_opt_in:
+        errors.append(f"lint.on: {', '.join(not_opt_in)} always run; on takes only {', '.join(sorted(OPT_IN_RULES))}")
     unknown_params = sorted(set(lint.get("params", {})) - LINT_PARAMS)
     if unknown_params:
         errors.append(f"lint.params: unknown {', '.join(unknown_params)}; known: {', '.join(sorted(LINT_PARAMS))}")

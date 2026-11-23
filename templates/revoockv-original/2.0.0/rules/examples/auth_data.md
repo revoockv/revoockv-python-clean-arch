@@ -1,6 +1,6 @@
 # Auth feature — data
 
-Part 2 of 4 of the worked feature (`auth_domain.md` first). Data sources may raise; the repository is the only place where their exceptions become `Failure`, and it logs every public method. How to split a big data layer: `rules/data/data_design.md`.
+Part 2 of 4 of the worked feature (`auth_domain.md` first). Data sources may raise; the repository is the only place where their exceptions become `Failure(AuthFailure.…)` (the details go to the log, never into the failure), and it logs every public method. How to split a big data layer: `rules/data/data_design.md`.
 
 ---
 
@@ -65,6 +65,10 @@ class AuthDataSourceError(Exception):
     """Raised by auth data sources when an operation fails."""
 
 
+class InvalidCredentialsError(AuthDataSourceError):
+    """Raised when the backend rejects the email or the password."""
+
+
 class AuthDataSource(ABC):
     """Talks to the auth backend. May raise; the repository converts errors to ``Failure``."""
 
@@ -73,7 +77,7 @@ class AuthDataSource(ABC):
         """Authenticate and return the user.
 
         Raises:
-            AuthDataSourceError: If the credentials are rejected.
+            InvalidCredentialsError: If the credentials are rejected.
         """
 
     @abstractmethod
@@ -92,7 +96,7 @@ class AuthDataSource(ABC):
 
 from my_app.features.auth.data.data_sources.auth_data_source import (
     AuthDataSource,
-    AuthDataSourceError,
+    InvalidCredentialsError,
 )
 from my_app.features.auth.data.models.auth_user_model import AuthUserModel
 
@@ -109,7 +113,7 @@ class InMemoryAuthDataSource(AuthDataSource):
         """Authenticate against the in-memory users."""
         stored = self._users.get(email)
         if stored is None or stored[1] != password:
-            raise AuthDataSourceError("invalid email or password")
+            raise InvalidCredentialsError(email)
         self._session = AuthUserModel.from_dict({"id": stored[0], "email": email})
         return self._session
 
@@ -126,7 +130,7 @@ class InMemoryAuthDataSource(AuthDataSource):
 
 ## Data — repository implementation
 
-Implements the domain interface. The ONLY place where data-source exceptions become `Failure`. Receives `logger` by constructor and logs every public method (`Method: status — description`). Maps models to entities before returning.
+Implements the domain interface. The ONLY place where data-source exceptions become `Failure`: a known exception → its member, anything else → `BACKEND`. Receives `logger` by constructor and logs every public method (`Method: status — description`). Maps models to entities before returning.
 
 `src/my_app/features/auth/data/repositories/auth_repository_impl.py`
 
@@ -136,45 +140,52 @@ Implements the domain interface. The ONLY place where data-source exceptions bec
 import logging
 
 from my_app.core.domain.entities.result import Failure, Result, Success
-from my_app.features.auth.data.data_sources.auth_data_source import AuthDataSource
+from my_app.features.auth.data.data_sources.auth_data_source import (
+    AuthDataSource,
+    InvalidCredentialsError,
+)
+from my_app.features.auth.domain.entities.auth_failure import AuthFailure
 from my_app.features.auth.domain.entities.auth_user import AuthUser
 from my_app.features.auth.domain.repositories.auth_repository import AuthRepository
 
 
 class AuthRepositoryImpl(AuthRepository):
-    """``AuthRepository`` backed by an ``AuthDataSource``; converts exceptions to ``Failure``."""
+    """``AuthRepository`` over an ``AuthDataSource``; turns exceptions into ``AuthFailure``."""
 
     def __init__(self, *, data_source: AuthDataSource, logger: logging.Logger) -> None:
         self._data_source = data_source
         self._logger = logger
 
-    async def sign_in(self, *, email: str, password: str) -> Result[AuthUser]:
+    async def sign_in(self, *, email: str, password: str) -> Result[AuthUser, AuthFailure]:
         """Authenticate via the data source and map the model to an entity."""
         try:
             model = await self._data_source.sign_in(email=email, password=password)
+        except InvalidCredentialsError:
+            self._logger.warning("SignIn: failure — wrong credentials for %s", email)
+            return Failure(AuthFailure.WRONG_CREDENTIALS)
         except Exception as e:
             self._logger.error("SignIn: failure — %s", e)
-            return Failure(str(e))
+            return Failure(AuthFailure.BACKEND)
         self._logger.info("SignIn: success — user %s signed in", model.email)
         return Success(model.to_entity())
 
-    async def sign_out(self) -> Result[None]:
+    async def sign_out(self) -> Result[None, AuthFailure]:
         """End the session via the data source."""
         try:
             await self._data_source.sign_out()
         except Exception as e:
             self._logger.error("SignOut: failure — %s", e)
-            return Failure(str(e))
+            return Failure(AuthFailure.BACKEND)
         self._logger.info("SignOut: success — session ended")
         return Success(None)
 
-    async def get_current_user(self) -> Result[AuthUser | None]:
+    async def get_current_user(self) -> Result[AuthUser | None, AuthFailure]:
         """Read the session user from the data source."""
         try:
             model = await self._data_source.current_user()
         except Exception as e:
             self._logger.error("GetCurrentUser: failure — %s", e)
-            return Failure(str(e))
+            return Failure(AuthFailure.BACKEND)
         if model is None:
             self._logger.warning("GetCurrentUser: success — nobody is signed in")
             return Success(None)
@@ -196,6 +207,7 @@ from my_app.features.auth.data.data_sources.in_memory_auth_data_source import (
     InMemoryAuthDataSource,
 )
 from my_app.features.auth.data.repositories.auth_repository_impl import AuthRepositoryImpl
+from my_app.features.auth.domain.entities.auth_failure import AuthFailure
 from my_app.features.auth.domain.entities.auth_user import AuthUser
 
 
@@ -215,5 +227,5 @@ async def test_sign_in_maps_model_to_entity() -> None:
 async def test_sign_in_converts_data_source_error_to_failure() -> None:
     result = await _repository().sign_in(email="a@b.c", password="wrong")
 
-    assert isinstance(result, Failure)
+    assert result == Failure(AuthFailure.WRONG_CREDENTIALS)
 ```

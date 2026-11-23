@@ -34,7 +34,7 @@ container.reset()                          # register_and_init() and tests
   file with a library, runs a CLI tool, calls a model. One service per library/tool.
 - Both may raise; both receive `logger` by constructor when they log; both are registered in
   `<feature>_di.py` and injected into repository implementations. Only repositories convert their
-  exceptions into `Failure`.
+  exceptions into `Failure(<member>)`.
 
 ## Rule: who may touch the container (`container_access`)
 

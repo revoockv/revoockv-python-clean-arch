@@ -7,7 +7,11 @@ type Row = dict[str, object]
 
 
 class DatabaseDataSourceError(Exception):
-    """Raised by database data sources when an operation fails (for example, an unknown id)."""
+    """Raised by database data sources when an operation fails."""
+
+
+class RowNotFoundError(DatabaseDataSourceError):
+    """Raised when there is no row with the given id."""
 
 
 class DatabaseDataSource(ABC):
@@ -30,7 +34,7 @@ class DatabaseDataSource(ABC):
         """Replace the row with the same ``id``.
 
         Raises:
-            DatabaseDataSourceError: If there is no row with that id.
+            RowNotFoundError: If there is no row with that id.
         """
 
     @abstractmethod
@@ -38,5 +42,5 @@ class DatabaseDataSource(ABC):
         """Remove the row ``row_id``.
 
         Raises:
-            DatabaseDataSourceError: If there is no row with that id.
+            RowNotFoundError: If there is no row with that id.
         """

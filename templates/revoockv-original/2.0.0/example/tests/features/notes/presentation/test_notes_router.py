@@ -19,7 +19,9 @@ def test_notes_api(database_file: Path) -> None:
         assert updated.json()["text"] == "Buy bread"
 
         assert client.delete(f"/notes/{note['id']}").status_code == HTTPStatus.NO_CONTENT
-        assert client.delete(f"/notes/{note['id']}").status_code == HTTPStatus.NOT_FOUND
+        missing = client.delete(f"/notes/{note['id']}")
+        assert missing.status_code == HTTPStatus.NOT_FOUND
+        assert missing.json()["detail"] == "There is no such note"
 
 
 def test_blank_text_is_422(database_file: Path) -> None:

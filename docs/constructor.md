@@ -51,7 +51,7 @@ file of its topic. A subject the new template does the same way as its source st
 | `[structure]` | `strict_layers`; `[structure.required]` and `[structure.optional]`: layer → folders of every feature and of `core/`. `init_*` create the required ones, the linter's `folder_structure` checks them |
 | `[scaffold]` | `core_files` (copied from the example by `init_project`), `next_step`; `[scaffold.adapters]` adapter → `dependencies`, `dev`, `script`; `[scaffold.wiring]` → the import and the line `init_feature` adds before `# </marker>` of a root file; `[scaffold.dev_dependencies] packages` |
 | `[example]` | `path`, `package`; `docs_package` (package name in the rules' code); `doc_paths` (rule code blocks compiled in the example), `same_as_example` (blocks that must equal the example's files), `doc_feature` (a feature that lives only in the rules) |
-| `[lint]` | `off` — rules the template does not use; `warn` — rules shown as warnings (`--strict` does not fail on them) |
+| `[lint]` | `off` — rules the template does not use; `on` — opt-in rules it uses (`typed_failures`); `warn` — rules shown as warnings (`--strict` does not fail on them) |
 | `[lint.params]` | `allowed_numbers`, `max_file_lines`, `constant_layers` |
 
 Stub files are `*.tmpl` under `scaffold/`: `project/` (written into the new project), `main/<adapter>.py.tmpl`,

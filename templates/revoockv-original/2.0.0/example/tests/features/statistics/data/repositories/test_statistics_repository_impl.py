@@ -15,6 +15,7 @@ from example_app.features.statistics.data.repositories.statistics_repository_imp
     StatisticsRepositoryImpl,
 )
 from example_app.features.statistics.domain.entities.notes_statistics import NotesStatistics
+from example_app.features.statistics.domain.entities.statistics_failure import StatisticsFailure
 from tests.conftest import FixedClockService
 
 
@@ -45,4 +46,4 @@ async def test_data_source_error_becomes_failure(clock: FixedClockService) -> No
         data_source=BrokenStatisticsDataSource(), clock=clock, logger=logging.getLogger("test")
     )
 
-    assert await repository.get_notes_statistics() == Failure("disk is gone")
+    assert await repository.get_notes_statistics() == Failure(StatisticsFailure.STORAGE)

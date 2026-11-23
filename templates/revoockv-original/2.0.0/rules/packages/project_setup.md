@@ -1,6 +1,6 @@
 # Project setup and tooling
 
-Python **3.12+** (PEP 695 generics: `class Success[T]`, `type Result[T] = ...`). Managed with **uv**.
+Python **3.12+** (PEP 695 generics: `class Success[T]`, `type Result[T, F] = ...`). Managed with **uv**.
 
 ## Create
 

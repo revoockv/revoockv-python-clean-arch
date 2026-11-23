@@ -30,7 +30,7 @@ Log **every public method** of a repository implementation, on both paths:
 
 - Success: a human-readable description, not the repr of the result.
   `self._logger.info("AddSong: success — song %s by %s added", title, author)`
-- Failure: the error.
+- Failure: the error — its details go here, never into the `Failure`.
   `self._logger.error("AddSong: failure — %s", e)`
 - Early returns / expected empties: warning with the reason.
   `self._logger.warning("GetCurrentUser: success — nobody is signed in")`
